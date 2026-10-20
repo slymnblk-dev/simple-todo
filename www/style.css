@@ -1,20 +1,20 @@
 :root {
-  --bg: #f6f6f8;
+  --bg: #eef3fb;
   --card: #ffffff;
-  --text: #16161a;
-  --muted: #8a8a94;
-  --line: #ececf0;
-  --accent: #5b5bf6;
+  --text: #0f1a33;
+  --muted: #7a869e;
+  --line: #dce5f4;
+  --accent: #2f6bff;
   --danger: #ef4444;
-  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
+  --shadow: 0 1px 2px rgba(30,70,160,.06), 0 6px 20px rgba(30,70,160,.08);
 }
 :root[data-theme="dark"] {
-  --bg: #0e0e11;
-  --card: #18181c;
-  --text: #f2f2f5;
-  --muted: #74747e;
-  --line: #26262c;
-  --accent: #7c7cff;
+  --bg: #0a1020;
+  --card: #121a30;
+  --text: #eaf0ff;
+  --muted: #7d8bab;
+  --line: #1f2b48;
+  --accent: #4d8dff;
   --shadow: none;
 }
 
@@ -23,6 +23,8 @@
 html, body { height: 100%; }
 body {
   background: var(--bg);
+  background-image: radial-gradient(900px 400px at 50% -120px, rgba(77,141,255,.18), transparent);
+  background-repeat: no-repeat;
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -95,9 +97,33 @@ h1 { font-size: 34px; font-weight: 700; letter-spacing: -.02em; margin-top: 2px;
 .add input::placeholder { color: var(--muted); }
 .add button {
   width: 54px; height: 54px; border-radius: 16px; border: 0; cursor: pointer;
-  background: var(--accent); color: #fff; display: grid; place-items: center;
+  background: linear-gradient(135deg, #4d8dff, #2f6bff); color: #fff; display: grid; place-items: center;
+  box-shadow: 0 6px 18px rgba(47,107,255,.35);
 }
 .add button:active, .check:active { transform: scale(.94); }
 
 @keyframes in { from { opacity: 0; transform: translateY(6px); } }
 @keyframes out { to { opacity: 0; transform: translateX(30px); } }
+
+.version { text-align: center; color: var(--muted); font-size: 12px; margin-top: 28px; opacity: .8; }
+
+.modal {
+  position: fixed; inset: 0; background: rgba(8,14,30,.5); backdrop-filter: blur(6px);
+  display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10;
+}
+.modal.show { display: flex; animation: fade .18s ease-out; }
+.sheet {
+  width: 100%; max-width: 340px; background: var(--card); border: 1px solid var(--line);
+  border-radius: 22px; padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,.3);
+  animation: pop .2s ease-out;
+}
+.sheet h2 { font-size: 19px; letter-spacing: -.01em; }
+.sheet p { color: var(--muted); margin: 8px 0 20px; font-size: 15px; word-break: break-word; }
+.sheet .row { display: flex; gap: 10px; }
+.sheet button {
+  flex: 1; height: 48px; border-radius: 14px; border: 0; font-size: 16px; font-weight: 600; cursor: pointer;
+}
+.btn-cancel { background: var(--line); color: var(--text); }
+.btn-delete { background: var(--danger); color: #fff; }
+@keyframes fade { from { opacity: 0; } }
+@keyframes pop { from { opacity: 0; transform: scale(.94); } }

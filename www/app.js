@@ -1,3 +1,4 @@
+const VERSION = '1.1.0';
 const KEY = 'simple-todo.tasks';
 const THEME_KEY = 'simple-todo.theme';
 
@@ -27,16 +28,30 @@ function render() {
     li.innerHTML = `<button class="check" aria-label="Complete">${CHECK}</button><span class="text"></span><button class="del" aria-label="Delete">${TRASH}</button>`;
     li.querySelector('.text').textContent = t.text;
     li.querySelector('.check').onclick = () => { t.done = !t.done; save(); render(); };
-    li.querySelector('.del').onclick = () => {
-      li.classList.add('removing');
-      setTimeout(() => { tasks = tasks.filter(x => x !== t); save(); render(); }, 180);
-    };
+    li.querySelector('.del').onclick = () => askDelete(t, li);
     list.appendChild(li);
   }
   const left = tasks.filter(t => !t.done).length;
   count.textContent = tasks.length ? `${left} of ${tasks.length} left` : '';
   empty.classList.toggle('show', tasks.length === 0);
 }
+
+const modal = document.getElementById('modal');
+let pending = null;
+function askDelete(t, li) {
+  pending = { t, li };
+  document.getElementById('modal-text').textContent = '“' + t.text + '” will be removed.';
+  modal.classList.add('show');
+}
+function closeModal() { modal.classList.remove('show'); pending = null; }
+document.getElementById('cancel').onclick = closeModal;
+modal.onclick = e => { if (e.target === modal) closeModal(); };
+document.getElementById('confirm').onclick = () => {
+  const { t, li } = pending;
+  closeModal();
+  li.classList.add('removing');
+  setTimeout(() => { tasks = tasks.filter(x => x !== t); save(); render(); }, 180);
+};
 
 form.onsubmit = e => {
   e.preventDefault();
@@ -64,5 +79,7 @@ document.getElementById('theme').onclick = () => {
 
 document.getElementById('date').textContent =
   new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+
+document.getElementById('version').textContent = 'Simple Todo · v' + VERSION;
 
 render();
