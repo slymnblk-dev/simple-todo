@@ -1,5 +1,7 @@
-const VERSION = '1.1.0';
+const VERSION = '1.1.1';
 const KEY = 'simple-todo.tasks';
+const ACCENT_KEY = 'simple-todo.accent';
+const SIZE_KEY = 'simple-todo.size';
 const THEME_KEY = 'simple-todo.theme';
 
 const list = document.getElementById('list');
@@ -83,3 +85,32 @@ document.getElementById('date').textContent =
 document.getElementById('version').textContent = 'Simple Todo · v' + VERSION;
 
 render();
+
+// Settings: accent color + text size
+const COLORS = { blue: '#2f6bff', purple: '#7a4dff', green: '#12a36b', orange: '#f2700f', pink: '#e0368f' };
+const root = document.documentElement;
+const swatches = document.getElementById('swatches');
+const sizes = document.getElementById('sizes');
+const settings = document.getElementById('settings');
+
+function setAccent(name) {
+  root.dataset.accent = name;
+  localStorage.setItem(ACCENT_KEY, name);
+  swatches.querySelectorAll('.swatch').forEach(b => b.classList.toggle('on', b.dataset.color === name));
+}
+function setSize(v) {
+  root.style.setProperty('--ts', v);
+  localStorage.setItem(SIZE_KEY, v);
+  sizes.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.size === String(v)));
+}
+for (const [name, hex] of Object.entries(COLORS)) {
+  const b = document.createElement('button');
+  b.className = 'swatch'; b.dataset.color = name; b.style.background = hex; b.setAttribute('aria-label', name);
+  b.onclick = () => setAccent(name);
+  swatches.appendChild(b);
+}
+sizes.querySelectorAll('button').forEach(b => b.onclick = () => setSize(b.dataset.size));
+document.getElementById('settings-btn').onclick = () => settings.classList.add('show');
+document.getElementById('settings-close').onclick = () => settings.classList.remove('show');
+setAccent(localStorage.getItem(ACCENT_KEY) || 'blue');
+setSize(localStorage.getItem(SIZE_KEY) || '1');

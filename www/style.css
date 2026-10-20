@@ -5,6 +5,9 @@
   --muted: #7a869e;
   --line: #dce5f4;
   --accent: #2f6bff;
+  --accent2: #4d8dff;
+  --glow: 47,107,255;
+  --ts: 1;
   --danger: #ef4444;
   --shadow: 0 1px 2px rgba(30,70,160,.06), 0 6px 20px rgba(30,70,160,.08);
 }
@@ -15,6 +18,7 @@
   --muted: #7d8bab;
   --line: #1f2b48;
   --accent: #4d8dff;
+  --accent2: #2f6bff;
   --shadow: none;
 }
 
@@ -23,7 +27,7 @@
 html, body { height: 100%; }
 body {
   background: var(--bg);
-  background-image: radial-gradient(900px 400px at 50% -120px, rgba(77,141,255,.18), transparent);
+  background-image: radial-gradient(900px 400px at 50% -120px, rgba(var(--glow),.16), transparent);
   background-repeat: no-repeat;
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -68,7 +72,7 @@ h1 { font-size: 34px; font-weight: 700; letter-spacing: -.02em; margin-top: 2px;
 .item.done .check { background: var(--accent); border-color: var(--accent); }
 .item.done .check svg { opacity: 1; transform: scale(1); }
 
-.text { flex: 1; font-size: 16px; line-height: 1.4; word-break: break-word; transition: color .2s; }
+.text { flex: 1; font-size: calc(16px * var(--ts)); line-height: 1.4; word-break: break-word; transition: color .2s; }
 .item.done .text { color: var(--muted); text-decoration: line-through; }
 
 .del {
@@ -97,8 +101,8 @@ h1 { font-size: 34px; font-weight: 700; letter-spacing: -.02em; margin-top: 2px;
 .add input::placeholder { color: var(--muted); }
 .add button {
   width: 54px; height: 54px; border-radius: 16px; border: 0; cursor: pointer;
-  background: linear-gradient(135deg, #4d8dff, #2f6bff); color: #fff; display: grid; place-items: center;
-  box-shadow: 0 6px 18px rgba(47,107,255,.35);
+  background: linear-gradient(135deg, var(--accent2), var(--accent)); color: #fff; display: grid; place-items: center;
+  box-shadow: 0 6px 18px rgba(var(--glow),.35);
 }
 .add button:active, .check:active { transform: scale(.94); }
 
@@ -127,3 +131,29 @@ h1 { font-size: 34px; font-weight: 700; letter-spacing: -.02em; margin-top: 2px;
 .btn-delete { background: var(--danger); color: #fff; }
 @keyframes fade { from { opacity: 0; } }
 @keyframes pop { from { opacity: 0; transform: scale(.94); } }
+
+/* accent colors (light / dark) */
+:root[data-accent="purple"] { --accent:#7a4dff; --accent2:#9b7bff; --glow:122,77,255; }
+:root[data-accent="green"]  { --accent:#12a36b; --accent2:#2fd08f; --glow:18,163,107; }
+:root[data-accent="orange"] { --accent:#f2700f; --accent2:#ff9a47; --glow:242,112,15; }
+:root[data-accent="pink"]   { --accent:#e0368f; --accent2:#ff6fb5; --glow:224,54,143; }
+:root[data-theme="dark"][data-accent="purple"] { --accent:#9b7bff; --accent2:#7a4dff; }
+:root[data-theme="dark"][data-accent="green"]  { --accent:#2fd08f; --accent2:#12a36b; }
+:root[data-theme="dark"][data-accent="orange"] { --accent:#ff9a47; --accent2:#f2700f; }
+:root[data-theme="dark"][data-accent="pink"]   { --accent:#ff6fb5; --accent2:#e0368f; }
+
+.tools { display: flex; gap: 8px; }
+
+.settings {
+  position: fixed; inset: 0; background: var(--bg); z-index: 20; overflow-y: auto;
+  transform: translateX(100%); transition: transform .25s ease; visibility: hidden;
+}
+.settings.show { transform: none; visibility: visible; }
+.settings-inner { max-width: 560px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 32px) 20px 40px; }
+.settings h3 { font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin: 32px 0 12px; }
+.swatches { display: flex; gap: 14px; flex-wrap: wrap; }
+.swatch { width: 46px; height: 46px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; outline: 2px solid transparent; outline-offset: 2px; }
+.swatch.on { outline-color: var(--text); }
+.seg { display: flex; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 4px; gap: 4px; }
+.seg button { flex: 1; height: 42px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font-size: 15px; font-weight: 600; cursor: pointer; }
+.seg button.on { background: var(--accent); color: #fff; }
