@@ -519,8 +519,11 @@
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `meridian-${todayKey}.json`; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000); toast('Exported');
   });
-  $('#resetBtn').addEventListener('click', () => {
-    if (!confirm('Clear today’s priorities?')) return;
+  let resetArmed = 0;
+  $('#resetBtn').addEventListener('click', (e) => {
+    const b = e.currentTarget;
+    if (Date.now() - resetArmed > 3000) { resetArmed = Date.now(); b.textContent = 'Tap again to clear'; setTimeout(() => (b.textContent = 'Clear today'), 3000); return; }
+    resetArmed = 0; b.textContent = 'Clear today';
     delete state.days[todayKey]; save(); editing = -1; renderToday(); closeSettings(); toast('Today cleared');
   });
 
@@ -543,7 +546,8 @@
   setInterval(checkDay, 30e3);
 
   // ?demo — seeds a believable history (for screenshots / first look)
-  if (/[?&]demo/.test(location.search) && !Object.keys(state.days).length) {
+  const demoQ = location.search + (window.MERIDIAN_DEMO ? '&demo=1' : '');
+  if (/[?&]demo/.test(demoQ) && !Object.keys(state.days).length) {
     const sample = [['Ship the onboarding redesign', 'Call mom back', '30 minutes of reading'], ['Write the quarterly memo', 'Gym — legs', 'Inbox to zero'], ['Review 3 pull requests', 'Plan the weekend trip', 'Stretch before bed']];
     const tk = fromKey(todayKey); let seed = 3; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
     for (let k = 1; k < 110; k++) {
@@ -552,8 +556,8 @@
       const s = sample[k % 3];
       state.days[keyOf(addDays(tk, -k))] = { items: s.map((t, j) => ({ t, d: j < n })) };
     }
-    state.days[todayKey] = { items: [{ t: 'Send five outreach emails', d: /demo=[123]/.test(location.search) }, { t: 'Finish a focused work session', d: /demo=[23]/.test(location.search) }, { t: 'Get outside for a walk', d: /demo=3/.test(location.search) }] };
-    if (/demo=3/.test(location.search)) state.days[todayKey].wonAt = Date.now();
+    state.days[todayKey] = { items: [{ t: 'Send five outreach emails', d: /demo=[123]/.test(demoQ) }, { t: 'Finish a focused work session', d: /demo=[23]/.test(demoQ) }, { t: 'Get outside for a walk', d: /demo=3/.test(demoQ) }] };
+    if (/demo=3/.test(demoQ)) state.days[todayKey].wonAt = Date.now();
   }
 
   /* ───────── Boot ───────── */
