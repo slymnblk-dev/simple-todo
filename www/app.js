@@ -363,7 +363,7 @@
   setInterval(checkDay, 30e3);
 
   /* ───────── Sample data for screenshots: open with ?demo ───────── */
-  if (/[?&]demo/.test(location.search) && !Object.keys(state.days).length) {
+  if ((window.GROW_DEMO || /[?&]demo/.test(location.search)) && !Object.keys(state.days).length) {
     const sets = [['Ship the onboarding redesign', 'Call Dad back', '30 minutes of reading'], ['Write the quarterly memo', 'Gym: legs day', 'Inbox to zero'], ['Review three pull requests', 'Plan the weekend trip', 'Stretch before bed']];
     const pattern = [3, 3, 2, 3, 0, 3, 1, 3, 3, 2, 3, 3, 3, 3, 3, 2, 3, 3, 1, 3, 3, 3, 0, 3, 3, 3, 3, 2, 3, 3];
     const t = fromKey(todayKey);
