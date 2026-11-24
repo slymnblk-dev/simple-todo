@@ -3,245 +3,208 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0E0C1A" />
-  <title>Meridian</title>
-  <link rel="preload" href="fonts/instrument-serif-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+  <meta name="theme-color" content="#E9EDE4" />
+  <title>Grow</title>
+  <link rel="preload" href="fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/dm-sans.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="style.css" />
 </head>
-<body data-stage="0">
-  <div class="ambient" aria-hidden="true"></div>
-  <div class="grain" aria-hidden="true"></div>
+<body>
+  <div class="app">
+    <header class="top">
+      <span class="brand">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="16" cy="7" r="4" class="f-amber"/><path d="M9 21V11 M9 15c-3 0-5-2-5-5 3 0 5 2 5 5z M9 12c0-3 2-5 5-5 0 3-2 5-5 5z" class="brand-plant" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        grow
+      </span>
+      <span class="mono top-label" id="topLabel"></span>
+    </header>
 
-  <header class="bar">
-    <div class="bar-in">
-      <a class="brand" href="#" aria-label="Meridian home" data-view-link="today">
-        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-          <path d="M5 23a11 11 0 0 1 22 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 2.6" opacity=".55"/>
-          <circle cx="16" cy="12" r="4.2" fill="var(--sun)"/>
-          <path d="M3 23h26" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-          <path d="M8 27h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".4"/>
-        </svg>
-        <span>Meridian</span>
-      </a>
-      <nav class="seg" role="tablist" aria-label="Views">
-        <span class="seg-pill" aria-hidden="true"></span>
-        <button role="tab" id="tab-today" data-view="today" aria-selected="true" aria-controls="view-today">Today</button>
-        <button role="tab" id="tab-history" data-view="history" aria-selected="false" aria-controls="view-history">Record</button>
-      </nav>
-      <button class="icon-btn" id="settingsBtn" aria-label="Settings">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
-      </button>
-    </div>
-  </header>
-
-  <main>
-    <!-- ───────────── TODAY ───────────── -->
-    <section id="view-today" class="view" role="tabpanel" aria-labelledby="tab-today">
-      <div class="hero-head">
-        <p class="eyebrow mono"><span class="pulse" aria-hidden="true"></span><span id="dateLine"></span></p>
-        <h1 class="display">Win the <em>day</em><span class="sun-dot" aria-hidden="true"></span></h1>
-        <p class="lede" id="lede">Three priorities. Nothing more.</p>
-      </div>
-
-      <div class="today-grid">
-        <article class="sky-card" id="skyCard" data-stage="0" aria-label="Daily progress">
-          <svg class="sky" id="sky" viewBox="0 0 600 240" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-            <defs>
-              <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" class="s-a"/>
-                <stop offset=".62" class="s-b"/>
-                <stop offset="1" class="s-c"/>
-              </linearGradient>
-              <radialGradient id="sunCore" cx=".42" cy=".38" r=".7">
-                <stop offset="0" stop-color="#FFFBEF"/>
-                <stop offset=".45" stop-color="#FFD98A"/>
-                <stop offset="1" stop-color="#FF8A4C"/>
-              </radialGradient>
-              <radialGradient id="sunGlow">
-                <stop offset="0" stop-color="#FFC56E" stop-opacity=".75"/>
-                <stop offset=".35" stop-color="#FF9A5A" stop-opacity=".28"/>
-                <stop offset="1" stop-color="#FF7A4C" stop-opacity="0"/>
-              </radialGradient>
-              <linearGradient id="trailGrad" x1="0" y1="1" x2="1" y2="0">
-                <stop offset="0" stop-color="#FF7A6B"/>
-                <stop offset="1" stop-color="#FFD27A"/>
-              </linearGradient>
-            </defs>
-            <rect width="600" height="240" fill="url(#skyGrad)"/>
-            <g id="stars" class="stars"></g>
-            <g class="moon"><circle cx="430" cy="72" r="12" fill="#F3EEE6"/><circle cx="436.5" cy="67" r="11" class="moon-cut"/></g>
-
-            <path class="arc-future" d="M300 35 A165 165 0 0 1 465 200"/>
-            <path class="arc-past" d="M135 200 A165 165 0 0 1 300 35"/>
-            <path class="arc-trail" id="trail" d="M135 200 A165 165 0 0 1 300 35" pathLength="1"/>
-            <g id="ticks"></g>
-
-            <g id="sun" transform="translate(136 217)">
-              <circle r="90" fill="url(#sunGlow)" class="sun-glow"/>
-              <g class="rays">
-                <g id="rayLines"></g>
-                <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="40s" repeatCount="indefinite"/>
-              </g>
-              <circle r="19" fill="url(#sunCore)"/>
+    <main class="scroll" id="main">
+      <!-- ───────── TODAY ───────── -->
+      <section class="view" id="view-today" aria-label="Today">
+        <section class="plant-card" id="plantCard" aria-label="Daily progress">
+          <svg class="plant" viewBox="0 20 260 300" role="img" id="plantSvg">
+            <g class="stars" id="stars">
+              <circle cx="30" cy="60" r="1.6"/><circle cx="214" cy="48" r="1.3"/><circle cx="236" cy="120" r="1.8"/>
+              <circle cx="60" cy="118" r="1.1"/><circle cx="180" cy="36" r="1.2"/><circle cx="16" cy="170" r="1.3"/>
             </g>
-
-            <path class="hill hill-back" d="M-40 196 C40 176 110 170 190 186 C260 199 320 172 400 176 C470 180 540 196 640 184 L640 240 L-40 240Z"/>
-            <path class="hill hill-front" d="M-40 214 C60 200 150 204 240 212 C330 220 420 198 520 204 C570 207 610 212 640 210 L640 240 L-40 240Z"/>
+            <g class="sun sun-off" id="sun">
+              <circle cx="132" cy="54" r="52" class="f-amber" opacity=".12"/>
+              <circle cx="132" cy="54" r="42" class="f-amber" opacity=".22"/>
+              <circle cx="132" cy="54" r="32" class="f-amber"/>
+            </g>
+            <path d="M130 270 C128 220 136 170 128 110 C124 86 130 74 132 66" class="stem"/>
+            <path class="leaf" data-k="0" style="transform-origin: right bottom" d="M129 222 C100 222 66 206 54 176 C88 168 118 186 129 222Z"/>
+            <path class="leaf leaf-b" data-k="1" style="transform-origin: left bottom" d="M131 166 C158 160 192 140 200 108 C166 104 138 128 131 166Z"/>
+            <path class="leaf" data-k="2" style="transform-origin: right bottom" d="M128 118 C108 112 90 92 88 66 C112 70 126 90 128 118Z"/>
+            <path d="M84 268 h92 l-10 52 h-72 Z" class="pot"/>
+            <rect x="78" y="260" width="104" height="14" rx="4" class="pot2"/>
           </svg>
-
-          <div class="ground">
-            <div class="score">
-              <p class="mono label"><span class="label-dot"></span>Solar progress</p>
-              <p class="count"><span class="count-n" id="countN">0</span><span class="count-of">/3</span></p>
-              <p class="status" id="status">Before dawn. Three to win the day.</p>
-            </div>
-            <div class="segments" id="segments" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="score">
+            <span class="mono">TODAY</span>
+            <span class="score-n"><span id="count">0</span><small>/3</small></span>
           </div>
-        </article>
-
-        <section class="pris" aria-labelledby="prisTitle">
-          <div class="pris-head">
-            <h2 id="prisTitle">Your <em>priorities</em></h2>
-            <span class="mono chip-muted" id="remaining">3 remaining</span>
-          </div>
-
-          <div class="carry" id="carry" hidden>
-            <div>
-              <p class="carry-title">Unfinished from yesterday</p>
-              <p class="carry-sub" id="carrySub"></p>
-            </div>
-            <div class="carry-actions">
-              <button class="btn ghost" id="carryNo">Fresh start</button>
-              <button class="btn sun" id="carryYes">Carry over</button>
-            </div>
-          </div>
-
-          <ol class="pri-list" id="priList"></ol>
-
-          <p class="foot mono">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-            Kept on this device
-          </p>
+          <p class="status" aria-live="polite"><span id="status"></span></p>
         </section>
-      </div>
-    </section>
 
-    <!-- ───────────── HISTORY ───────────── -->
-    <section id="view-history" class="view" role="tabpanel" aria-labelledby="tab-history" hidden>
-      <div class="hero-head">
-        <p class="eyebrow mono"><span class="pulse" aria-hidden="true"></span>Every day, on the record</p>
-        <h1 class="display">Your <em>record</em><span class="sun-dot" aria-hidden="true"></span></h1>
-      </div>
-
-      <div class="stats" id="stats"></div>
-
-      <article class="card heat-card">
-        <div class="card-head">
-          <h2>The last <em>eighteen weeks</em></h2>
-          <div class="legend mono" aria-hidden="true">
-            <span><i class="h0"></i>none</span><span><i class="h1"></i>partial</span><span><i class="h3"></i>won</span>
+        <div class="carry" id="carry" hidden>
+          <div>
+            <p class="carry-title">Unfinished from yesterday</p>
+            <p class="carry-sub" id="carrySub"></p>
+          </div>
+          <div class="carry-actions">
+            <button class="btn ghost" id="carryNo">Fresh start</button>
+            <button class="btn primary" id="carryYes">Carry over</button>
           </div>
         </div>
-        <div class="heat-wrap"><div class="heat" id="heat" role="img"></div></div>
-      </article>
 
-      <article class="card">
-        <div class="card-head"><h2>Recent <em>days</em></h2></div>
-        <ol class="days" id="days"></ol>
-        <p class="empty-days" id="emptyDays" hidden>No days on the record yet. Today is a good place to start.</p>
-      </article>
-    </section>
-  </main>
+        <div class="row-head">
+          <h1 class="h1">Your three</h1>
+          <span class="mono muted2" id="remaining"></span>
+        </div>
+        <ol class="pris" id="pris"></ol>
+        <p class="hint">Tap the box to complete. Tap the words to rename.</p>
+      </section>
 
-  <!-- ───────────── WIN OVERLAY ───────────── -->
-  <div class="win" id="win" hidden role="dialog" aria-modal="true" aria-labelledby="winTitle">
-    <canvas id="sparks"></canvas>
-    <div class="win-burst" aria-hidden="true"></div>
-    <div class="win-inner">
-      <p class="mono win-date" id="winDate"></p>
-      <h2 class="win-title" id="winTitle">Day <em>won</em>.</h2>
-      <p class="win-sub" id="winSub"></p>
-      <div class="win-week" id="winWeek" aria-hidden="true"></div>
-      <button class="btn sun lg" id="winClose">Bask in it</button>
+      <!-- ───────── GARDEN ───────── -->
+      <section class="view" id="view-garden" aria-label="Garden" hidden>
+        <h1 class="h1 big">Garden</h1>
+        <div class="stats" id="stats"></div>
+        <section class="panel garden-panel" aria-label="Last fourteen days">
+          <p class="panel-sub">Last two weeks · tap a day</p>
+          <div class="garden" id="garden"></div>
+        </section>
+        <section class="panel" aria-live="polite">
+          <div class="panel-head">
+            <h2 class="h2" id="selTitle"></h2>
+            <span class="chip mono" id="selChip"></span>
+          </div>
+          <ul class="sel-list" id="selList"></ul>
+        </section>
+      </section>
+
+      <!-- ───────── PROFILE ───────── -->
+      <section class="view" id="view-profile" aria-label="Profile" hidden>
+        <div class="who">
+          <div class="avatar" id="avatar" aria-hidden="true"></div>
+          <div class="who-text">
+            <label for="nameInput" class="mono muted2">NAME · TAP TO EDIT</label>
+            <input id="nameInput" class="name-input" maxlength="24" autocomplete="off" placeholder="Your name" />
+            <span class="who-sub" id="whoSub"></span>
+          </div>
+        </div>
+
+        <div class="seg" role="tablist" aria-label="Profile sections">
+          <button role="tab" id="tabOverview" aria-selected="true">Overview</button>
+          <button role="tab" id="tabSettings" aria-selected="false">Settings</button>
+        </div>
+
+        <div id="overview">
+          <section class="panel">
+            <div class="panel-head">
+              <h2 class="h2">Weekly goal</h2>
+              <span class="mono muted2" id="weekCount"></span>
+            </div>
+            <div class="week" id="weekBars" aria-hidden="true"></div>
+            <p class="panel-note" id="weekHint"></p>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2 class="h2">Milestones</h2>
+              <span class="mono muted2" id="badgeCount"></span>
+            </div>
+            <div class="badges" id="badges"></div>
+          </section>
+        </div>
+
+        <div id="settings" hidden>
+          <p class="group mono">APPEARANCE</p>
+          <section class="panel">
+            <div class="themes" role="radiogroup" aria-label="Appearance" id="themes">
+              <button role="radio" data-theme="auto"><span class="sw sw-auto"></span>Auto</button>
+              <button role="radio" data-theme="light"><span class="sw sw-light"></span>Light</button>
+              <button role="radio" data-theme="dark"><span class="sw sw-dark"></span>Dark</button>
+            </div>
+            <p class="panel-note" id="themeHint"></p>
+          </section>
+
+          <p class="group mono">REMINDERS</p>
+          <section class="panel list">
+            <div class="set-row">
+              <div><span class="set-name">Morning plan</span><span class="set-sub">A nudge to name your three</span></div>
+              <button class="switch" role="switch" data-key="morning" aria-label="Morning plan"><span></span></button>
+            </div>
+            <div class="times" id="times" role="radiogroup" aria-label="Morning reminder time">
+              <button role="radio" data-time="07:00">07:00</button>
+              <button role="radio" data-time="08:00">08:00</button>
+              <button role="radio" data-time="09:00">09:00</button>
+              <button role="radio" data-time="10:00">10:00</button>
+            </div>
+            <div class="set-row">
+              <div><span class="set-name">Evening review</span><span class="set-sub">A check-in at 20:30</span></div>
+              <button class="switch" role="switch" data-key="evening" aria-label="Evening review"><span></span></button>
+            </div>
+          </section>
+
+          <p class="group mono">EXPERIENCE</p>
+          <section class="panel list">
+            <div class="set-row">
+              <div><span class="set-name">Sound</span><span class="set-sub">A short chime when you complete one</span></div>
+              <button class="switch" role="switch" data-key="sound" aria-label="Sound"><span></span></button>
+            </div>
+            <div class="set-row">
+              <div><span class="set-name">Haptics</span><span class="set-sub">A small tap on completion</span></div>
+              <button class="switch" role="switch" data-key="haptics" aria-label="Haptics"><span></span></button>
+            </div>
+            <div class="set-row">
+              <div><span class="set-name">Carry over</span><span class="set-sub">Offer yesterday’s unfinished ones</span></div>
+              <button class="switch" role="switch" data-key="carry" aria-label="Carry over"><span></span></button>
+            </div>
+          </section>
+
+          <p class="group mono">DATA</p>
+          <section class="panel list">
+            <button class="link-row" id="exportBtn">Copy my history<span aria-hidden="true">→</span></button>
+            <button class="link-row danger" id="clearBtn">Clear today</button>
+          </section>
+          <p class="mono foot">GROW v1.0 · STORED ON THIS DEVICE</p>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" hidden>
+      <span id="toastMsg"></span>
+      <button id="toastUndo">Undo</button>
+    </div>
+
+    <nav class="nav" aria-label="Views" id="nav">
+      <button data-tab="today" aria-label="Today">
+        <span class="orb"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V10 M12 14c-3 0-6-2-6-6 4 0 6 2 6 6z M12 11c0-4 3-6 6-6 0 4-3 6-6 6z"/></svg></span>
+        <span class="nav-label" aria-hidden="true">Today</span>
+      </button>
+      <button data-tab="garden" aria-label="Garden">
+        <span class="orb"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18 M7 20v-5 M12 20V9 M17 20v-7"/></svg></span>
+        <span class="nav-label" aria-hidden="true">Garden</span>
+      </button>
+      <button data-tab="profile" aria-label="Profile">
+        <span class="orb"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span>
+        <span class="nav-label" aria-hidden="true">Profile</span>
+      </button>
+    </nav>
+
+    <div class="win" id="win" role="dialog" aria-modal="true" aria-labelledby="winTitle" hidden>
+      <svg class="rise win-sun" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="46" fill="#E9A23B" opacity=".12"/>
+        <circle cx="50" cy="50" r="36" fill="#E9A23B" opacity=".22"/>
+        <circle cx="50" cy="50" r="24" fill="#E9A23B"/>
+      </svg>
+      <p class="rise mono win-date" id="winDate"></p>
+      <h2 class="rise win-title" id="winTitle">Day won.</h2>
+      <p class="rise win-sub" id="winSub"></p>
+      <button class="rise win-btn" id="winGarden">See it in your garden</button>
+      <button class="win-back" id="winBack">Back to today</button>
     </div>
   </div>
-
-  <!-- ───────────── FOCUS OVERLAY ───────────── -->
-  <div class="focus" id="focus" hidden role="dialog" aria-modal="true" aria-labelledby="focusTitle">
-    <div class="focus-inner">
-      <div class="focus-top">
-        <p class="mono" id="focusLabel">Focus · Priority I</p>
-        <button class="icon-btn" id="focusClose" aria-label="Close focus">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-        </button>
-      </div>
-      <h2 class="focus-title" id="focusTitle"></h2>
-      <div class="dial">
-        <svg viewBox="0 0 300 300" aria-hidden="true">
-          <circle cx="150" cy="150" r="128" class="dial-track"/>
-          <g id="dialTicks"></g>
-          <circle cx="150" cy="150" r="128" class="dial-prog" id="dialProg" pathLength="1" transform="rotate(-90 150 150)"/>
-          <g id="dialSun"><circle r="22" fill="url(#dialGlow)"/><circle r="8" fill="#FFE3A3"/></g>
-          <defs><radialGradient id="dialGlow"><stop offset="0" stop-color="#FFC56E" stop-opacity=".8"/><stop offset="1" stop-color="#FF8A4C" stop-opacity="0"/></radialGradient></defs>
-        </svg>
-        <div class="dial-read">
-          <p class="dial-time" id="dialTime">25:00</p>
-          <p class="mono dial-state" id="dialState">Ready</p>
-        </div>
-      </div>
-      <div class="durations" id="durations" role="radiogroup" aria-label="Duration">
-        <button role="radio" data-min="15">15</button>
-        <button role="radio" data-min="25" aria-checked="true">25</button>
-        <button role="radio" data-min="50">50</button>
-      </div>
-      <div class="focus-actions">
-        <button class="btn ghost" id="focusReset">Reset</button>
-        <button class="btn sun lg" id="focusToggle">Begin</button>
-        <button class="btn ghost" id="focusDone">Mark done</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ───────────── SETTINGS ───────────── -->
-  <div class="sheet-wrap" id="settings" hidden>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="setTitle">
-      <div class="sheet-grip" aria-hidden="true"></div>
-      <div class="sheet-head">
-        <h2 id="setTitle">Settings</h2>
-        <button class="icon-btn" id="settingsClose" aria-label="Close settings">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-        </button>
-      </div>
-      <div class="set-row">
-        <div><p class="set-name">Appearance</p><p class="set-sub">Night is the default. Day is for paper people.</p></div>
-        <div class="mini-seg" id="themeSeg" role="radiogroup" aria-label="Appearance">
-          <button role="radio" data-theme="system">Auto</button>
-          <button role="radio" data-theme="dark">Night</button>
-          <button role="radio" data-theme="light">Day</button>
-        </div>
-      </div>
-      <div class="set-row">
-        <div><p class="set-name">Sound</p><p class="set-sub">A rising chord, one note per priority.</p></div>
-        <button class="switch" id="soundSw" role="switch" aria-checked="true" aria-label="Sound"><span></span></button>
-      </div>
-      <div class="set-row">
-        <div><p class="set-name">Haptics</p><p class="set-sub">A small tap when you check something off.</p></div>
-        <button class="switch" id="hapticSw" role="switch" aria-checked="true" aria-label="Haptics"><span></span></button>
-      </div>
-      <div class="set-row">
-        <div><p class="set-name">Your data</p><p class="set-sub">Everything lives on this device.</p></div>
-        <div class="set-actions">
-          <button class="btn ghost sm" id="exportBtn">Export</button>
-          <button class="btn danger sm" id="resetBtn">Clear today</button>
-        </div>
-      </div>
-      <p class="mono set-ver">Meridian · v2.0</p>
-    </div>
-  </div>
-
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <p class="sr-only" id="live" aria-live="polite"></p>
 
   <script src="app.js"></script>
 </body>

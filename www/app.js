@@ -1,573 +1,384 @@
-/* Meridian — three priorities, one sun. */
+/* Grow — three priorities a day. Finish all three and the plant reaches the sun. */
 (() => {
   'use strict';
-
-  const KEY = 'meridian.v1';
-  const ROMAN = ['I', 'II', 'III'];
-  const PLACEHOLDERS = ['The one that moves the needle…', 'The one you keep postponing…', 'The one that is just for you…'];
-  const STATUS = [
-    'Before dawn. Three to win the day.',
-    'First light. Keep going.',
-    'Almost noon. One more.',
-    'High noon. Day won.',
-  ];
-  const LEDE = [
-    'Three priorities. Nothing more. Finish them and the sun reaches noon.',
-    'The sun is up. Two more and it reaches noon.',
-    'One left between you and noon.',
-    'Noon reached. The rest of the day is yours.',
-  ];
+  const KEY = 'grow.v1';
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  const PH = ['The one that moves the needle', 'The one you keep putting off', 'The one just for you'];
+  const STATUS = ['Three to reach the sun.', 'First leaf. Keep going.', 'One more to reach the sun.', 'Sunlit. Day won.'];
+  const DEFAULTS = { theme: 'auto', sound: true, haptics: true, carry: true, morning: false, time: '08:00', evening: false };
+
   /* ───────── Storage ───────── */
-  const blankDay = () => ({ items: [0, 1, 2].map(() => ({ t: '', d: false })) });
   function load() {
     try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.days) return s; } catch (e) {}
-    return { days: {}, settings: { theme: 'system', sound: true, haptics: true }, carryDismissed: {} };
+    return { days: {}, name: '', settings: {}, carryDismissed: {} };
   }
   let state = load();
-  state.settings = Object.assign({ theme: 'system', sound: true, haptics: true }, state.settings);
+  state.settings = Object.assign({}, DEFAULTS, state.settings);
   state.carryDismissed = state.carryDismissed || {};
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
 
   const keyOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const fromKey = (k) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
   const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
   let todayKey = keyOf(new Date());
-  const today = () => state.days[todayKey] || blankDay();
-  const ensureToday = () => (state.days[todayKey] ||= blankDay());
-  const doneCount = (day) => day.items.filter((i) => i.d && i.t.trim()).length;
-  const isWon = (day) => day && doneCount(day) === 3;
+  const blank = () => ({ items: [0, 1, 2].map(() => ({ t: '', d: false })) });
+  const today = () => state.days[todayKey] || blank();
+  const ensureToday = () => (state.days[todayKey] ||= blank());
+  const doneCount = (day) => (day ? day.items.filter((x) => x.d && x.t.trim()).length : 0);
+  const isWon = (day) => doneCount(day) === 3;
+  const fmt = (d, o) => d.toLocaleDateString(undefined, o);
 
   /* ───────── Theme ───────── */
+  const mq = matchMedia('(prefers-color-scheme: dark)');
   function applyTheme() {
     const t = state.settings.theme;
-    if (t === 'system') document.documentElement.removeAttribute('data-theme');
-    else document.documentElement.setAttribute('data-theme', t);
-    $$('#themeSeg button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.theme === t)));
+    const dark = t === 'dark' || (t === 'auto' && mq.matches);
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    $('meta[name="theme-color"]').setAttribute('content', dark ? '#0E1611' : '#E9EDE4');
+    $$('#themes button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.theme === t)));
+    $('#themeHint').textContent = t === 'auto' ? `Auto follows your phone. Right now it is ${dark ? 'dark' : 'light'}.` : 'Applies everywhere in the app.';
   }
+  mq.addEventListener?.('change', applyTheme);
 
   /* ───────── Sound & haptics ───────── */
   let actx;
-  function tone(freq, when = 0, dur = 1.2, gain = 0.12, type = 'sine') {
+  function tone(freq, when = 0, dur = 1, gain = 0.1) {
     if (!state.settings.sound) return;
     try {
       actx ||= new (window.AudioContext || window.webkitAudioContext)();
       if (actx.state === 'suspended') actx.resume();
-      const t0 = actx.currentTime + when;
-      const o = actx.createOscillator(), g = actx.createGain(), o2 = actx.createOscillator(), g2 = actx.createGain();
-      o.type = type; o.frequency.value = freq;
-      o2.type = 'sine'; o2.frequency.value = freq * 2.001; g2.gain.value = 0.25;
+      const t0 = actx.currentTime + when, o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'sine'; o.frequency.value = freq;
       g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(gain, t0 + 0.012);
+      g.gain.exponentialRampToValueAtTime(gain, t0 + 0.015);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-      o.connect(g); o2.connect(g2); g2.connect(g); g.connect(actx.destination);
-      o.start(t0); o2.start(t0); o.stop(t0 + dur + 0.05); o2.stop(t0 + dur + 0.05);
+      o.connect(g); g.connect(actx.destination); o.start(t0); o.stop(t0 + dur + 0.05);
     } catch (e) {}
   }
-  const NOTES = [523.25, 659.25, 783.99]; // C5 E5 G5 — the day's chord, built one priority at a time
-  const chimeCheck = (n) => tone(NOTES[Math.max(0, n - 1)], 0, 1.4, 0.13);
-  const chimeUncheck = () => tone(392, 0, 0.35, 0.05, 'triangle');
-  const chimeWin = () => [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => tone(f, 0.25 + i * 0.11, 2.6, 0.09));
+  const NOTES = [392, 493.88, 587.33];
+  const chimeWin = () => [392, 493.88, 587.33, 783.99].forEach((f, i) => tone(f, 0.15 + i * 0.12, 2.2, 0.08));
   const buzz = (p) => { if (state.settings.haptics && navigator.vibrate) try { navigator.vibrate(p); } catch (e) {} };
 
-  /* ───────── Sky ───────── */
-  const svgNS = 'http://www.w3.org/2000/svg';
-  const mk = (tag, attrs, parent) => { const el = document.createElementNS(svgNS, tag); for (const k in attrs) el.setAttribute(k, attrs[k]); parent && parent.appendChild(el); return el; };
-  const CX = 300, CY = 200, R = 165;
-  const arcPoint = (p) => { const th = ((p <= 0 ? 186 : 180 - 90 * p) * Math.PI) / 180; return [CX + R * Math.cos(th), CY - R * Math.sin(th)]; };
-
-  (function buildSky() {
-    // hidden defs for the check seal
-    const defs = mk('svg', { width: 0, height: 0, style: 'position:absolute', 'aria-hidden': 'true' }, document.body);
-    defs.innerHTML = '<defs><radialGradient id="sealGrad" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#FFF3D6"/><stop offset=".4" stop-color="#FFD27A"/><stop offset="1" stop-color="#FF8F55"/></radialGradient></defs>';
-    // stars — deterministic so they don't jump between renders
-    let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    const stars = $('#stars');
-    for (let i = 0; i < 60; i++) {
-      const c = mk('circle', { cx: (rnd() * 600).toFixed(1), cy: (rnd() * 170).toFixed(1), r: (rnd() * 1.1 + 0.35).toFixed(2) }, stars);
-      c.style.setProperty('--d', (2 + rnd() * 3).toFixed(2) + 's'); c.style.animationDelay = (-rnd() * 4).toFixed(2) + 's';
-    }
-    // tick markers on the arc
-    const ticks = $('#ticks');
-    [1 / 3, 2 / 3, 1].forEach((p, i) => {
-      const [x, y] = arcPoint(p);
-      mk('circle', { cx: x, cy: y, r: 4, class: 'tick-dot', 'data-i': i }, ticks);
-      const th = ((180 - 90 * p) * Math.PI) / 180;
-      const lx = CX + (R + 22) * Math.cos(th), ly = CY - (R + 22) * Math.sin(th);
-      const t = mk('text', { x: lx, y: ly + 5, 'text-anchor': 'middle', class: 'tick-label' }, ticks);
-      t.textContent = ROMAN[i].toLowerCase();
-    });
-    // rays
-    const rays = $('#rayLines');
-    for (let i = 0; i < 16; i++) {
-      const a = (i / 16) * Math.PI * 2, long = i % 2 === 0;
-      mk('line', { x1: Math.cos(a) * 28, y1: Math.sin(a) * 28, x2: Math.cos(a) * (long ? 46 : 38), y2: Math.sin(a) * (long ? 46 : 38), opacity: long ? 0.9 : 0.5 }, rays);
-    }
-  })();
-
-  let shownP = -1, raf;
-  function setSun(target, instant) {
-    const sun = $('#sun'), trail = $('#trail');
-    const draw = (p) => {
-      const [x, y] = arcPoint(p);
-      sun.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)})`);
-      trail.style.strokeDashoffset = String(1 - Math.max(0, p));
-    };
-    cancelAnimationFrame(raf);
-    if (instant || reduced || shownP < 0) { shownP = target; draw(target); return; }
-    const from = shownP, t0 = performance.now(), dur = 1300;
-    const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-    const step = (now) => {
-      const t = Math.min(1, (now - t0) / dur);
-      shownP = from + (target - from) * ease(t); draw(shownP);
-      if (t < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
+  /* ───────── Reminders (Capacitor Local Notifications on Android) ───────── */
+  const LN = () => window.Capacitor?.Plugins?.LocalNotifications;
+  async function syncReminders(fromUser) {
+    const ln = LN();
+    if (!ln) { if (fromUser && (state.settings.morning || state.settings.evening)) toast('Reminders work in the Android app'); return; }
+    try {
+      await ln.cancel({ notifications: [{ id: 1 }, { id: 2 }] }).catch(() => {});
+      if (!state.settings.morning && !state.settings.evening) return;
+      const perm = await ln.requestPermissions();
+      if (perm.display !== 'granted') { toast('Allow notifications to get reminders'); return; }
+      const list = [];
+      if (state.settings.morning) {
+        const [h, m] = state.settings.time.split(':').map(Number);
+        list.push({ id: 1, title: 'Name your three', body: 'What would make today a win?', schedule: { on: { hour: h, minute: m }, allowWhileIdle: true } });
+      }
+      if (state.settings.evening) list.push({ id: 2, title: 'How did your three go?', body: 'Tick off what you finished.', schedule: { on: { hour: 20, minute: 30 }, allowWhileIdle: true } });
+      await ln.schedule({ notifications: list });
+    } catch (e) {}
   }
+
+  /* ───────── Toast ───────── */
+  let toastT, undoFn = null;
+  function toast(msg, undo) {
+    const t = $('#toast');
+    $('#toastMsg').textContent = msg;
+    undoFn = undo || null;
+    t.classList.toggle('no-undo', !undo);
+    t.hidden = true; void t.offsetWidth; t.hidden = false;
+    clearTimeout(toastT);
+    toastT = setTimeout(hideToast, undo ? 3200 : 2200);
+  }
+  function hideToast() { $('#toast').hidden = true; undoFn = null; }
+  $('#toastUndo').addEventListener('click', () => { const f = undoFn; hideToast(); f && f(); });
 
   /* ───────── Today ───────── */
-  const list = $('#priList');
-  let editing = -1;
-
-  function priHTML(i) {
-    const angles = Array.from({ length: 8 }, (_, k) => `<i style="--a:${k * 45}deg"></i>`).join('');
-    return `
-      <span class="numeral" aria-hidden="true">${ROMAN[i].toLowerCase()}.</span>
-      <div class="pri-body">
-        <p class="pri-meta mono"><span>Priority ${ROMAN[i]}</span>
-          <button class="focus-chip" data-act="focus" aria-label="Focus on priority ${i + 1}">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>Focus</button>
-        </p>
-        <div class="pri-slot"></div>
-      </div>
-      <button class="seal" role="checkbox" aria-checked="false" data-act="toggle" aria-label="Mark priority ${i + 1} done">
-        <svg viewBox="0 0 36 36" aria-hidden="true"><circle class="ring" cx="18" cy="18" r="16.5"/><circle class="fill" cx="18" cy="18" r="18"/><path class="tick" d="M11 18.5l4.6 4.5L25.5 13"/></svg>
-        <span class="burst">${angles}</span>
-      </button>`;
-  }
-
-  function buildList() {
-    list.innerHTML = '';
+  const pris = $('#pris');
+  function buildPris() {
+    pris.innerHTML = '';
     for (let i = 0; i < 3; i++) {
       const li = document.createElement('li');
-      li.className = 'pri'; li.dataset.i = i; li.style.setProperty('--i', i);
-      li.innerHTML = priHTML(i);
-      list.appendChild(li);
+      li.className = 'pri'; li.dataset.i = i;
+      li.innerHTML = `
+        <button class="check" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></button>
+        <div class="pri-body">
+          <label class="pri-label" for="pri${i}"></label>
+          <input class="pri-input" id="pri${i}" maxlength="60" enterkeyhint="done" autocomplete="off" placeholder="${PH[i]}">
+        </div>`;
+      pris.appendChild(li);
     }
   }
 
-  function renderSlot(li, i, item) {
-    const slot = $('.pri-slot', li);
-    const needInput = editing === i || !item.t.trim();
-    const cur = slot.firstElementChild;
-    if (needInput) {
-      if (cur && cur.tagName === 'INPUT') return;
-      slot.innerHTML = `<input class="pri-input" maxlength="90" enterkeyhint="done" aria-label="Priority ${i + 1}" placeholder="${PLACEHOLDERS[i]}">`;
-      slot.firstElementChild.value = item.t;
-    } else {
-      if (cur && cur.tagName === 'SPAN' && cur.textContent === item.t) return;
-      slot.innerHTML = '<span class="pri-title" data-act="edit" tabindex="0" role="button"></span>';
-      slot.firstElementChild.textContent = item.t;
-      slot.firstElementChild.setAttribute('aria-label', `${item.t}. Tap to edit`);
-    }
-  }
-
+  let lastN = -1;
   function renderToday(opts = {}) {
     const day = today();
     const n = doneCount(day);
-    $$('.pri', list).forEach((li, i) => {
-      const item = day.items[i];
-      const empty = !item.t.trim();
-      li.classList.toggle('done', item.d && !empty);
-      li.classList.toggle('empty', empty);
-      li.classList.toggle('editing', editing === i);
-      const seal = $('.seal', li);
-      seal.disabled = empty;
-      seal.setAttribute('aria-checked', String(item.d && !empty));
-      renderSlot(li, i, item);
+    const nextIdx = day.items.findIndex((x) => !x.d && x.t.trim());
+    $$('.pri', pris).forEach((li, i) => {
+      const x = day.items[i], empty = !x.t.trim(), done = x.d && !empty;
+      li.classList.toggle('done', done);
+      li.classList.toggle('next', i === nextIdx);
+      const btn = $('.check', li);
+      btn.disabled = empty;
+      btn.setAttribute('aria-pressed', String(done));
+      btn.setAttribute('aria-label', (done ? 'Mark not done: ' : 'Mark done: ') + (x.t || 'empty priority'));
+      $('.pri-label', li).textContent = (i === nextIdx ? 'Up next · ' : '') + 'Priority ' + (i + 1);
+      const inp = $('.pri-input', li);
+      if (document.activeElement !== inp) inp.value = x.t;
     });
-
-    document.body.dataset.stage = n;
-    $('#skyCard').dataset.stage = n;
-    const cn = $('#countN');
-    if (cn.textContent !== String(n)) { cn.textContent = n; if (!opts.silent) { cn.classList.remove('bump'); void cn.offsetWidth; cn.classList.add('bump'); } }
+    $$('.leaf').forEach((l) => l.classList.toggle('on', n > +l.dataset.k));
+    const card = $('#plantCard'); card.classList.toggle('won', n === 3);
+    const sun = $('#sun');
+    if (n === 3) {
+      if (opts.celebrate) { sun.setAttribute('class', 'sun sun-off'); void sun.getBoundingClientRect(); sun.setAttribute('class', 'sun sun-on'); }
+      else if (!sun.classList.contains('sun-on')) sun.setAttribute('class', 'sun sun-set');
+    } else sun.setAttribute('class', 'sun sun-off');
+    $('#plantSvg').setAttribute('aria-label', `Plant with ${n} of 3 leaves${n === 3 ? ', reaching the sun' : ''}`);
+    const c = $('#count');
+    if (c.textContent !== String(n)) { c.textContent = n; if (lastN >= 0 && !reduced) { c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); } }
+    lastN = n;
     $('#status').textContent = STATUS[n];
-    $('#lede').textContent = LEDE[n];
-    $$('#segments i').forEach((s, i) => s.classList.toggle('on', i < n));
-    $$('.tick-dot').forEach((t, i) => t.classList.toggle('on', i < n));
-    const rem = $('#remaining');
     const filled = day.items.filter((x) => x.t.trim()).length;
-    rem.textContent = n === 3 ? 'All complete' : filled < 3 ? `${3 - filled} to name` : `${3 - n} remaining`;
-    rem.classList.toggle('won', n === 3);
-    setSun(n / 3, opts.instant);
+    $('#remaining').textContent = n === 3 ? 'ALL DONE' : filled < 3 ? `${3 - filled} TO NAME` : `${3 - n} LEFT`;
     renderCarry();
   }
 
-  function renderDate() {
-    const d = new Date();
-    const start = new Date(d.getFullYear(), 0, 0);
-    const doy = Math.floor((d - start) / 864e5);
-    const wk = d.toLocaleDateString(undefined, { weekday: 'long' });
-    const md = d.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
-    $('#dateLine').textContent = `${wk} · ${md} · Day ${doy}`;
+  pris.addEventListener('click', (e) => {
+    const btn = e.target.closest('.check'); if (!btn) return;
+    toggle(+btn.closest('.pri').dataset.i);
+  });
+  pris.addEventListener('input', (e) => {
+    if (!e.target.classList.contains('pri-input')) return;
+    const i = +e.target.closest('.pri').dataset.i, d = ensureToday();
+    d.items[i].t = e.target.value;
+    if (!e.target.value.trim()) d.items[i].d = false;
+    save(); renderToday();
+  });
+  pris.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || !e.target.classList.contains('pri-input')) return;
+    e.preventDefault();
+    const i = +e.target.closest('.pri').dataset.i, items = today().items;
+    for (let k = i + 1; k < 3; k++) if (!items[k].t.trim()) { $(`#pri${k}`).focus(); return; }
+    e.target.blur();
+  });
+  pris.addEventListener('focusout', (e) => {
+    if (!e.target.classList.contains('pri-input')) return;
+    const i = +e.target.closest('.pri').dataset.i, d = state.days[todayKey];
+    if (d) { d.items[i].t = d.items[i].t.replace(/\s+/g, ' ').trim(); save(); }
+    renderToday();
+  });
+
+  function toggle(i) {
+    const d = ensureToday(), x = d.items[i];
+    if (!x.t.trim()) return;
+    const before = JSON.parse(JSON.stringify(d.items));
+    x.d = !x.d;
+    const n = doneCount(d);
+    save();
+    if (x.d) {
+      tone(NOTES[n - 1], 0, 1.2, 0.1); buzz(n === 3 ? [16, 60, 30] : 14);
+      if (n < 3) toast(n === 1 ? 'First leaf grown' : `Leaf grown · ${n} of 3`, () => { d.items = before; save(); renderToday(); });
+      else hideToast();
+    } else { buzz(6); hideToast(); }
+    renderToday({ celebrate: x.d && n === 3 });
+    if (x.d && n === 3) setTimeout(showWin, reduced ? 100 : 1000);
   }
 
-  // carry over unfinished priorities from the previous recorded day
-  function lastPrevDay() {
-    const keys = Object.keys(state.days).filter((k) => k < todayKey).sort();
-    return keys.length ? keys[keys.length - 1] : null;
-  }
+  /* carry over */
   function carryCandidates() {
-    const t = today();
-    if (t.items.some((x) => x.t.trim()) || state.carryDismissed[todayKey]) return [];
-    const pk = lastPrevDay();
-    if (!pk || fromKey(pk) < addDays(fromKey(todayKey), -3)) return [];
-    return state.days[pk].items.filter((x) => x.t.trim() && !x.d);
+    if (!state.settings.carry || state.carryDismissed[todayKey]) return [];
+    if (today().items.some((x) => x.t.trim())) return [];
+    const prev = Object.keys(state.days).filter((k) => k < todayKey).sort().pop();
+    if (!prev || fromKey(prev) < addDays(fromKey(todayKey), -3)) return [];
+    return state.days[prev].items.filter((x) => x.t.trim() && !x.d);
   }
   function renderCarry() {
-    const c = carryCandidates(), box = $('#carry');
-    box.hidden = !c.length;
-    if (c.length) $('#carrySub').textContent = c.map((x) => `“${x.t}”`).join(', ');
+    const c = carryCandidates();
+    $('#carry').hidden = !c.length;
+    if (c.length) $('#carrySub').textContent = c.map((x) => x.t).join(' · ');
   }
   $('#carryYes').addEventListener('click', () => {
-    const c = carryCandidates(); const d = ensureToday();
-    c.slice(0, 3).forEach((x, i) => (d.items[i] = { t: x.t, d: false }));
+    const c = carryCandidates(), d = ensureToday();
+    c.forEach((x, i) => (d.items[i] = { t: x.t, d: false }));
     save(); renderToday(); toast(`Carried over ${c.length}`);
   });
   $('#carryNo').addEventListener('click', () => { state.carryDismissed[todayKey] = 1; save(); renderCarry(); });
 
-  /* interactions */
-  list.addEventListener('click', (e) => {
-    const li = e.target.closest('.pri'); if (!li) return;
-    const i = +li.dataset.i;
-    const act = e.target.closest('[data-act]')?.dataset.act;
-    if (act === 'toggle') toggle(i, li);
-    else if (act === 'edit') startEdit(i);
-    else if (act === 'focus') openFocus(i);
-  });
-  list.addEventListener('keydown', (e) => {
-    if (e.target.classList.contains('pri-title') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); startEdit(+e.target.closest('.pri').dataset.i); }
-    if (e.target.classList.contains('pri-input')) {
-      if (e.key === 'Enter') { e.preventDefault(); const i = +e.target.closest('.pri').dataset.i; commit(i, e.target.value); focusNextEmpty(i); }
-      if (e.key === 'Escape') { editing = -1; renderToday({ silent: true }); }
-    }
-  });
-  list.addEventListener('focusout', (e) => {
-    if (!e.target.classList.contains('pri-input')) return;
-    const i = +e.target.closest('.pri').dataset.i;
-    setTimeout(() => commit(i, e.target.value), 0);
-  });
-
-  function startEdit(i) {
-    editing = i; renderToday({ silent: true });
-    const inp = $(`.pri[data-i="${i}"] .pri-input`);
-    if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
-  }
-  function focusNextEmpty(i) {
-    const items = today().items;
-    for (let k = i + 1; k < 3; k++) if (!items[k].t.trim()) { $(`.pri[data-i="${k}"] .pri-input`)?.focus(); return; }
-    document.activeElement?.blur();
-  }
-  function commit(i, val) {
-    const t = val.replace(/\s+/g, ' ').trim();
-    const cur = today().items[i];
-    if (editing === i) editing = -1;
-    if (t !== cur.t) {
-      const d = ensureToday(); d.items[i].t = t; if (!t) d.items[i].d = false;
-      const wasWon = !!d.wonAt; if (!isWon(d)) delete d.wonAt; if (wasWon && !d.wonAt) {}
-      save();
-    }
-    if (document.activeElement?.classList.contains('pri-input') && document.activeElement.closest('.pri')?.dataset.i != i) {
-      // another input is active — keep its DOM untouched
-      const keep = +document.activeElement.closest('.pri').dataset.i; editing = keep;
-    }
-    renderToday({ silent: true });
-  }
-
-  function toggle(i, li) {
-    const d = ensureToday(); const item = d.items[i];
-    if (!item.t.trim()) return;
-    item.d = !item.d;
-    const n = doneCount(d);
-    if (item.d) {
-      li.classList.remove('pop'); void li.offsetWidth; li.classList.add('pop');
-      chimeCheck(n); buzz(n === 3 ? [16, 60, 16, 60, 40] : 14);
-    } else { chimeUncheck(); buzz(6); }
-    let justWon = false;
-    if (n === 3 && !d.wonAt) { d.wonAt = Date.now(); justWon = true; }
-    if (n < 3) delete d.wonAt;
-    save(); renderToday();
-    announce(`${n} of 3 complete.${n === 3 ? ' Day won.' : ''}`);
-    if (justWon) setTimeout(showWin, reduced ? 50 : 1250);
-  }
-
-  /* ───────── Win ───────── */
-  function streakInfo() {
-    let cur = 0; let d = fromKey(todayKey);
+  /* ───────── Streaks & stats ───────── */
+  function stats() {
+    let cur = 0, d = fromKey(todayKey);
     if (!isWon(state.days[todayKey])) d = addDays(d, -1);
     while (isWon(state.days[keyOf(d)])) { cur++; d = addDays(d, -1); }
     const won = Object.keys(state.days).filter((k) => isWon(state.days[k])).sort();
     let best = 0, run = 0, prev = null;
     won.forEach((k) => { run = prev && keyOf(addDays(fromKey(prev), 1)) === k ? run + 1 : 1; best = Math.max(best, run); prev = k; });
-    return { cur, best, total: won.length };
+    const t = fromKey(todayKey), monday = addDays(t, -((t.getDay() + 6) % 7));
+    let week = 0;
+    for (let k = 0; k < 7; k++) if (isWon(state.days[keyOf(addDays(monday, k))])) week++;
+    const anyDone = Object.values(state.days).some((x) => doneCount(x) > 0);
+    return { cur, best, total: won.length, week, anyDone };
   }
 
-  let sparkStop;
+  /* ───────── Win ───────── */
   function showWin() {
-    const w = $('#win');
-    const d = new Date(); const s = streakInfo();
-    $('#winDate').textContent = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-    $('#winSub').textContent = s.cur > 1 ? `Three for three. That's ${s.cur} days in a row.` : 'Three for three. The sun is yours.';
-    const wk = $('#winWeek'); wk.innerHTML = '';
-    for (let k = 6; k >= 0; k--) {
-      const dd = addDays(fromKey(todayKey), -k);
-      const sp = document.createElement('span');
-      sp.innerHTML = `<i class="${isWon(state.days[keyOf(dd)]) ? 'on' : ''}"></i>${dd.toLocaleDateString(undefined, { weekday: 'narrow' })}`;
-      wk.appendChild(sp);
-    }
-    w.hidden = false; w.classList.remove('out');
+    if (!isWon(today())) return;
+    const s = stats();
+    $('#winDate').textContent = `${fmt(new Date(), { weekday: 'long', month: 'short', day: 'numeric' }).toUpperCase()} · 3 OF 3`;
+    $('#winSub').textContent = s.cur > 1 ? `Your plant reached the sun. That’s ${s.cur} days in a row.` : 'Your plant reached the sun. First day of a new streak.';
+    const w = $('#win'); w.classList.remove('out'); w.hidden = false;
     chimeWin();
-    if (!reduced) sparkStop = sparks($('#sparks'));
-    setTimeout(() => $('#winClose').focus(), 400);
+    setTimeout(() => $('#winGarden').focus(), 300);
   }
-  function closeWin() {
-    const w = $('#win'); if (w.hidden) return;
-    w.classList.add('out');
-    setTimeout(() => { w.hidden = true; sparkStop && sparkStop(); }, 480);
+  function closeWin(then) {
+    const w = $('#win'); w.classList.add('out');
+    setTimeout(() => { w.hidden = true; then && then(); }, 330);
   }
-  $('#winClose').addEventListener('click', closeWin);
-  $('#win').addEventListener('click', (e) => { if (e.target.id === 'sparks' || e.target.classList.contains('win')) closeWin(); });
+  $('#winGarden').addEventListener('click', () => closeWin(() => { selDay = 13; setTab('garden'); }));
+  $('#winBack').addEventListener('click', () => closeWin());
 
-  function sparks(cv) {
-    const ctx = cv.getContext('2d'); const dpr = Math.min(2, devicePixelRatio || 1);
-    const W = (cv.width = innerWidth * dpr), H = (cv.height = innerHeight * dpr);
-    const cols = ['#FFF6DE', '#FFE3A3', '#FFD27A', '#FFB36B', '#FF8F6B'];
-    const P = [];
-    const burst = (x, y, n, spd) => { for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = (Math.random() * spd + spd * 0.25) * dpr; P.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2 * dpr, life: 1, decay: 0.006 + Math.random() * 0.01, r: (Math.random() * 2.4 + 0.8) * dpr, c: cols[(Math.random() * cols.length) | 0], star: Math.random() < 0.25 }); } };
-    burst(W / 2, H * 0.58, 170, 9);
-    let t = 0, id, alive = true;
-    const star = (x, y, r) => { ctx.beginPath(); for (let k = 0; k < 8; k++) { const rr = k % 2 ? r * 0.35 : r * 2.4, a = (k * Math.PI) / 4; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } ctx.closePath(); ctx.fill(); };
-    const loop = () => {
-      t++;
-      if (t === 40) burst(W * 0.25, H * 0.45, 60, 6);
-      if (t === 70) burst(W * 0.75, H * 0.4, 60, 6);
-      if (t % 6 === 0 && t < 600) P.push({ x: Math.random() * W, y: H + 10, vx: (Math.random() - 0.5) * 0.4 * dpr, vy: -(Math.random() * 1.6 + 0.8) * dpr, life: 1, decay: 0.004, r: (Math.random() * 1.6 + 0.6) * dpr, c: cols[(Math.random() * 3) | 0], rise: 1 });
-      ctx.clearRect(0, 0, W, H);
-      ctx.globalCompositeOperation = 'lighter';
-      for (let i = P.length - 1; i >= 0; i--) {
-        const p = P[i];
-        p.x += p.vx; p.y += p.vy;
-        if (!p.rise) { p.vy += 0.09 * dpr; p.vx *= 0.985; p.vy *= 0.985; }
-        p.life -= p.decay;
-        if (p.life <= 0) { P.splice(i, 1); continue; }
-        ctx.globalAlpha = Math.min(1, p.life * 1.4); ctx.fillStyle = p.c;
-        if (p.star) star(p.x, p.y, p.r); else { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
-      }
-      if (alive) id = requestAnimationFrame(loop);
-    };
-    loop();
-    return () => { alive = false; cancelAnimationFrame(id); ctx.clearRect(0, 0, W, H); };
-  }
-
-  /* ───────── Focus timer ───────── */
-  let focus = { i: 0, min: 25, endAt: 0, left: 25 * 60e3, running: false }, focusTimer;
-  (function buildDial() {
-    const g = $('#dialTicks');
-    for (let k = 0; k < 60; k++) {
-      const a = (k / 60) * Math.PI * 2 - Math.PI / 2, major = k % 5 === 0, r1 = major ? 108 : 112, r2 = 118;
-      mk('line', { x1: 150 + Math.cos(a) * r1, y1: 150 + Math.sin(a) * r1, x2: 150 + Math.cos(a) * r2, y2: 150 + Math.sin(a) * r2, class: 'dial-tick' + (major ? ' major' : '') }, g);
-    }
-  })();
-  function openFocus(i) {
-    const item = today().items[i]; if (!item.t.trim()) return;
-    if (focus.i !== i || !focus.running) { focus = { i, min: focus.min, endAt: 0, left: focus.min * 60e3, running: false }; }
-    $('#focusLabel').textContent = `Focus · Priority ${ROMAN[i]}`;
-    $('#focusTitle').textContent = item.t;
-    const f = $('#focus'); f.hidden = false; f.classList.remove('out');
-    drawFocus(); setTimeout(() => $('#focusToggle').focus(), 200);
-  }
-  function closeFocus() { const f = $('#focus'); f.classList.add('out'); setTimeout(() => (f.hidden = true), 280); }
-  function remaining() { return focus.running ? Math.max(0, focus.endAt - Date.now()) : focus.left; }
-  function drawFocus() {
-    const left = remaining(), total = focus.min * 60e3, p = 1 - left / total;
-    const s = Math.ceil(left / 1000);
-    $('#dialTime').textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-    $('#dialProg').style.strokeDashoffset = String(1 - p);
-    const a = p * Math.PI * 2 - Math.PI / 2;
-    $('#dialSun').setAttribute('transform', `translate(${150 + Math.cos(a) * 128} ${150 + Math.sin(a) * 128})`);
-    $('#dialState').textContent = focus.running ? 'In the zone' : left === 0 ? 'Session complete' : left < total ? 'Paused' : 'Ready';
-    $('#focusToggle').textContent = focus.running ? 'Pause' : left < total && left > 0 ? 'Resume' : left === 0 ? 'Again' : 'Begin';
-    $('#durations').classList.toggle('locked', focus.running || (left < total && left > 0));
-    $$('#durations button').forEach((b) => b.setAttribute('aria-checked', String(+b.dataset.min === focus.min)));
-    if (focus.running && left === 0) {
-      focus.running = false; focus.left = 0; clearInterval(focusTimer);
-      [783.99, 987.77, 1174.66].forEach((f, k) => tone(f, k * 0.18, 1.8, 0.1)); buzz([30, 80, 30]);
-      drawFocus();
-    }
-  }
-  $('#focusToggle').addEventListener('click', () => {
-    if (focus.running) { focus.left = remaining(); focus.running = false; clearInterval(focusTimer); }
-    else {
-      if (focus.left === 0) focus.left = focus.min * 60e3;
-      focus.endAt = Date.now() + focus.left; focus.running = true;
-      clearInterval(focusTimer); focusTimer = setInterval(drawFocus, 250);
-      tone(523.25, 0, 0.6, 0.06);
-    }
-    drawFocus();
-  });
-  $('#focusReset').addEventListener('click', () => { clearInterval(focusTimer); focus.running = false; focus.left = focus.min * 60e3; drawFocus(); });
-  $('#durations').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; focus.min = +b.dataset.min; focus.left = focus.min * 60e3; drawFocus(); });
-  $('#focusDone').addEventListener('click', () => {
-    clearInterval(focusTimer); focus.running = false; focus.left = focus.min * 60e3;
-    closeFocus();
-    const i = focus.i;
-    if (!today().items[i].d) setTimeout(() => toggle(i, $(`.pri[data-i="${i}"]`)), 320);
-  });
-  $('#focusClose').addEventListener('click', closeFocus);
-
-  /* ───────── History ───────── */
-  function renderHistory() {
-    const s = streakInfo();
-    const tk = fromKey(todayKey);
-    let won30 = 0, act30 = 0;
-    for (let k = 0; k < 30; k++) { const d = state.days[keyOf(addDays(tk, -k))]; if (d && d.items.some((x) => x.t.trim())) { act30++; if (isWon(d)) won30++; } }
-    const rate = act30 ? Math.round((won30 / act30) * 100) : 0;
+  /* ───────── Garden ───────── */
+  let selDay = 13;
+  function renderGarden() {
+    const s = stats();
     $('#stats').innerHTML = `
-      <div class="stat hot"><p class="mono">Streak</p><p class="stat-n">${s.cur}<small>d</small></p><p class="stat-sub">${s.cur ? 'Keep the sun rising' : 'Win today to begin'}</p></div>
-      <div class="stat"><p class="mono">Best run</p><p class="stat-n">${s.best}<small>d</small></p><p class="stat-sub">${s.total} days won, all time</p></div>
-      <div class="stat"><p class="mono">Win rate</p><p class="stat-n">${rate}<small>%</small></p><p class="stat-sub">Last 30 days</p></div>`;
-
-    // heatmap: 18 weeks, columns Monday-first
-    const heat = $('#heat'); heat.innerHTML = '';
-    const dow = (tk.getDay() + 6) % 7;
-    const start = addDays(tk, -(17 * 7 + dow));
-    let wonN = 0;
-    for (let k = 0; k < 18 * 7; k++) {
-      const d = addDays(start, k), key = keyOf(d), day = state.days[key];
-      const i = document.createElement('i');
-      i.style.setProperty('--w', Math.floor(k / 7));
-      if (d > tk) i.className = 'hx';
-      else {
-        const n = day ? doneCount(day) : 0;
-        i.className = n === 3 ? 'h3' : n === 2 ? 'h2' : n === 1 ? 'h1' : 'h0';
-        if (n === 3) wonN++;
-        if (key === todayKey) i.classList.add('today');
-        i.title = `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} — ${n}/3`;
-      }
-      heat.appendChild(i);
+      <div class="stat hero"><p class="mono">STREAK</p><p class="stat-n">${s.cur}<small> ${s.cur === 1 ? 'day' : 'days'}</small></p></div>
+      <div class="stat"><p class="mono">DAYS WON</p><p class="stat-n">${s.total}</p></div>
+      <div class="stat"><p class="mono">BEST RUN</p><p class="stat-n">${s.best}</p></div>`;
+    const g = $('#garden'); g.innerHTML = '';
+    const t = fromKey(todayKey);
+    for (let i = 0; i < 14; i++) {
+      const d = addDays(t, i - 13), day = state.days[keyOf(d)], k = doneCount(day);
+      const b = document.createElement('button');
+      b.className = 'cell' + (i === 13 ? ' today' : '');
+      b.setAttribute('aria-pressed', String(i === selDay));
+      b.setAttribute('aria-label', `${i === 13 ? 'Today' : fmt(d, { weekday: 'long', month: 'short', day: 'numeric' })}: ${k === 3 ? 'day won' : k + ' of 3'}`);
+      b.innerHTML = `<svg viewBox="0 0 40 48" aria-hidden="true">
+          <circle class="c-sun" cx="27" cy="12" r="6" opacity="${k >= 3 ? 1 : 0}"/>
+          <path class="c-stem" d="M20 40 V16" opacity="${k > 0 ? 1 : 0}"/>
+          <path class="c-a" d="M20 32 C13 32 9 28 8 23 C14 23 18 26 20 32Z" opacity="${k >= 1 ? 1 : 0}"/>
+          <path class="c-b" d="M20 26 C27 26 31 22 32 17 C26 17 22 20 20 26Z" opacity="${k >= 2 ? 1 : 0}"/>
+          <path class="c-top" d="M20 19 C15 18 13 15 13 11 C17 12 19 15 20 19Z" opacity="${k >= 3 ? 1 : 0}"/>
+          <rect class="c-pot" x="12" y="40" width="16" height="6" rx="2"/>
+        </svg><span>${fmt(d, { weekday: 'narrow' })}</span>`;
+      b.addEventListener('click', () => { selDay = i; renderGarden(); });
+      g.appendChild(b);
     }
-    heat.setAttribute('aria-label', `${wonN} days won in the last eighteen weeks`);
-    requestAnimationFrame(() => { const w = $('.heat-wrap'); w.scrollLeft = w.scrollWidth; });
-
-    const days = $('#days'); days.innerHTML = '';
-    const keys = Object.keys(state.days).filter((k) => k <= todayKey && state.days[k].items.some((x) => x.t.trim())).sort().reverse().slice(0, 10);
-    $('#emptyDays').hidden = keys.length > 0;
-    keys.forEach((k) => {
-      const d = fromKey(k), day = state.days[k], n = doneCount(day);
-      const li = document.createElement('li'); li.className = 'day';
-      const label = k === todayKey ? 'Today' : k === keyOf(addDays(tk, -1)) ? 'Yesterday' : d.toLocaleDateString(undefined, { weekday: 'long' });
-      const verdict = n === 3 ? 'Day won' : n === 0 ? 'Not started' : `${n} of 3`;
-      li.innerHTML = `
-        <button class="day-row" aria-expanded="false">
-          <span class="day-date"><b>${d.getDate()}</b><span>${d.toLocaleDateString(undefined, { month: 'short' })}</span></span>
-          <span class="day-name">${label}<small>${verdict}</small></span>
-          <span class="pips" aria-hidden="true">${[0, 1, 2].map((j) => `<i class="${j < n ? 'on' : ''}"></i>`).join('')}</span>
-          <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-        <div class="day-items"><ol></ol></div>`;
-      const ol = $('ol', li);
-      day.items.forEach((x, j) => { if (!x.t.trim()) return; const it = document.createElement('li'); if (x.d) it.className = 'd'; it.innerHTML = `<b>${ROMAN[j].toLowerCase()}.</b><span></span>`; it.lastChild.textContent = x.t; ol.appendChild(it); });
-      days.appendChild(li);
-    });
+    const sd = addDays(t, selDay - 13), sday = state.days[keyOf(sd)], sk = doneCount(sday);
+    $('#selTitle').textContent = selDay === 13 ? 'Today' : selDay === 12 ? 'Yesterday' : fmt(sd, { weekday: 'short', month: 'short', day: 'numeric' });
+    const chip = $('#selChip');
+    chip.textContent = sk === 3 ? 'DAY WON' : `${sk} OF 3`;
+    chip.classList.toggle('won', sk === 3);
+    const ul = $('#selList'); ul.innerHTML = '';
+    const named = sday ? sday.items.filter((x) => x.t.trim()) : [];
+    if (!named.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = selDay === 13 ? 'Nothing named yet today.' : 'Nothing planted that day.'; ul.appendChild(li); }
+    named.forEach((x) => { const li = document.createElement('li'); if (x.d) li.className = 'd'; li.innerHTML = '<i></i><span></span>'; li.lastChild.textContent = x.t; ul.appendChild(li); });
   }
-  $('#days').addEventListener('click', (e) => {
-    const b = e.target.closest('.day-row'); if (!b) return;
-    const li = b.parentElement; const open = li.classList.toggle('open'); b.setAttribute('aria-expanded', String(open));
+
+  /* ───────── Profile ───────── */
+  const LEAF = 'M8 13 C4 11 3 7 4 3 C8 4 11 7 8 13Z';
+  const SUN = 'M8 4.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6z';
+  const FLAME = 'M8 1.5c1 2.5 4 4 4 7.5a4 4 0 0 1-8 0c0-1.6.8-2.7 1.8-3.6C6 7 7 7.5 7.5 6 7.8 4.6 7.6 3 8 1.5z';
+  function renderProfile() {
+    const name = state.name || '';
+    const initials = (name.trim().split(/\s+/).map((w) => w[0] || '').join('').slice(0, 2) || 'G').toUpperCase();
+    $('#avatar').textContent = initials;
+    const ni = $('#nameInput'); if (document.activeElement !== ni) ni.value = name;
+    const s = stats();
+    const first = Object.keys(state.days).sort()[0];
+    $('#whoSub').textContent = first ? `Growing since ${fmt(fromKey(first), { month: 'long', year: 'numeric' })} · ${s.total} days won` : 'Your garden starts today';
+    $('#weekCount').textContent = `${Math.min(s.week, 5)} / 5 DAYS`;
+    $('#weekBars').innerHTML = [0, 1, 2, 3, 4].map((k) => `<i class="${k < s.week ? 'on' : ''}"></i>`).join('');
+    $('#weekHint').textContent = s.week >= 5 ? 'Goal reached this week. Nice.' : `${5 - s.week} more ${5 - s.week === 1 ? 'day' : 'days'} won to hit your goal this week.`;
+    const badges = [
+      ['First leaf', s.anyDone, LEAF], ['First day won', s.total >= 1, SUN], ['7-day streak', s.best >= 7, FLAME],
+      ['Full week', s.week >= 5, SUN], ['30 days won', s.total >= 30, SUN], ['100 days won', s.total >= 100, SUN]
+    ];
+    $('#badgeCount').textContent = `${badges.filter((b) => b[1]).length} / ${badges.length}`;
+    $('#badges').innerHTML = badges.map(([n, got, icon]) => `<div class="badge${got ? ' got' : ''}"><b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="${icon}"/></svg></b>${n}${got ? '' : '<span class="sr-only"> (locked)</span>'}</div>`).join('');
+    $$('.switch').forEach((sw) => sw.setAttribute('aria-checked', String(!!state.settings[sw.dataset.key])));
+    $('#times').hidden = !state.settings.morning;
+    $$('#times button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.time === state.settings.time)));
+    applyTheme();
+  }
+  $('#nameInput').addEventListener('input', (e) => { state.name = e.target.value; save(); renderProfile(); });
+  function setProfileTab(t) {
+    $('#tabOverview').setAttribute('aria-selected', String(t === 'overview'));
+    $('#tabSettings').setAttribute('aria-selected', String(t === 'settings'));
+    $('#overview').hidden = t !== 'overview';
+    $('#settings').hidden = t !== 'settings';
+  }
+  $('#tabOverview').addEventListener('click', () => setProfileTab('overview'));
+  $('#tabSettings').addEventListener('click', () => setProfileTab('settings'));
+  $('#themes').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; state.settings.theme = b.dataset.theme; save(); applyTheme(); });
+  $$('.switch').forEach((sw) => sw.addEventListener('click', () => {
+    const k = sw.dataset.key; state.settings[k] = !state.settings[k]; save(); renderProfile();
+    if (k === 'haptics' && state.settings.haptics) buzz(12);
+    if (k === 'sound' && state.settings.sound) tone(587.33, 0, 0.8, 0.08);
+    if (k === 'carry') renderCarry();
+    if (k === 'morning' || k === 'evening') syncReminders(true);
+  }));
+  $('#times').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; state.settings.time = b.dataset.time; save(); renderProfile(); syncReminders(true); });
+  $('#exportBtn').addEventListener('click', async () => {
+    const text = JSON.stringify(state, null, 2);
+    try { await navigator.clipboard.writeText(text); toast('History copied to clipboard'); }
+    catch (e) { toast('Could not copy on this device'); }
+  });
+  let clearArmed = 0;
+  $('#clearBtn').addEventListener('click', (e) => {
+    const b = e.currentTarget;
+    if (Date.now() - clearArmed > 3000) { clearArmed = Date.now(); b.textContent = 'Tap again to clear today'; setTimeout(() => (b.textContent = 'Clear today'), 3000); return; }
+    clearArmed = 0; b.textContent = 'Clear today';
+    delete state.days[todayKey]; save(); renderToday(); setTab('today'); toast('Today cleared');
   });
 
   /* ───────── Navigation ───────── */
-  function setView(v) {
-    $$('.seg button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.view === v)));
-    $('#view-today').hidden = v !== 'today';
-    $('#view-history').hidden = v !== 'history';
-    if (v === 'history') renderHistory();
-    movePill(); scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+  let tab = 'today';
+  function setTab(t) {
+    tab = t;
+    $$('#nav button').forEach((b) => (b.dataset.tab === t ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current')));
+    ['today', 'garden', 'profile'].forEach((v) => ($(`#view-${v}`).hidden = v !== t));
+    $('#topLabel').textContent = t === 'profile' ? 'PROFILE' : fmt(fromKey(todayKey), { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase().replace(',', ' ·');
+    if (t === 'garden') renderGarden();
+    if (t === 'profile') renderProfile();
+    if (t === 'today') renderToday();
+    $('#main').scrollTop = 0;
   }
-  function movePill() {
-    const b = $('.seg button[aria-selected="true"]'), pill = $('.seg-pill');
-    pill.style.width = b.offsetWidth + 'px'; pill.style.transform = `translateX(${b.offsetLeft - 4}px)`;
-  }
-  $$('.seg button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
-  $('.brand').addEventListener('click', (e) => { e.preventDefault(); setView('today'); });
-  addEventListener('resize', movePill);
+  $('#nav').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setTab(b.dataset.tab); });
 
-  /* ───────── Settings ───────── */
-  const sw = (el, on) => el.setAttribute('aria-checked', String(on));
-  function openSettings() { const s = $('#settings'); s.hidden = false; s.classList.remove('out'); sw($('#soundSw'), state.settings.sound); sw($('#hapticSw'), state.settings.haptics); applyTheme(); }
-  function closeSettings() { const s = $('#settings'); s.classList.add('out'); setTimeout(() => (s.hidden = true), 240); }
-  $('#settingsBtn').addEventListener('click', openSettings);
-  $('#settingsClose').addEventListener('click', closeSettings);
-  $('#settings').addEventListener('click', (e) => { if (e.target.id === 'settings') closeSettings(); });
-  $('#themeSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; state.settings.theme = b.dataset.theme; save(); applyTheme(); });
-  $('#soundSw').addEventListener('click', () => { state.settings.sound = !state.settings.sound; save(); sw($('#soundSw'), state.settings.sound); if (state.settings.sound) tone(659.25, 0, 0.6, 0.08); });
-  $('#hapticSw').addEventListener('click', () => { state.settings.haptics = !state.settings.haptics; save(); sw($('#hapticSw'), state.settings.haptics); buzz(12); });
-  $('#exportBtn').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `meridian-${todayKey}.json`; a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000); toast('Exported');
-  });
-  let resetArmed = 0;
-  $('#resetBtn').addEventListener('click', (e) => {
-    const b = e.currentTarget;
-    if (Date.now() - resetArmed > 3000) { resetArmed = Date.now(); b.textContent = 'Tap again to clear'; setTimeout(() => (b.textContent = 'Clear today'), 3000); return; }
-    resetArmed = 0; b.textContent = 'Clear today';
-    delete state.days[todayKey]; save(); editing = -1; renderToday(); closeSettings(); toast('Today cleared');
+  // Android back button: close the win screen, otherwise go back to Today
+  window.Capacitor?.Plugins?.App?.addListener?.('backButton', () => {
+    if (!$('#win').hidden) closeWin(); else if (tab !== 'today') setTab('today'); else window.Capacitor.Plugins.App.exitApp?.();
   });
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    if (!$('#win').hidden) closeWin(); else if (!$('#focus').hidden) closeFocus(); else if (!$('#settings').hidden) closeSettings();
-  });
-
-  /* ───────── Misc ───────── */
-  let toastT;
-  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200); }
-  function announce(msg) { $('#live').textContent = msg; }
-
-  // roll over at midnight / when returning to the app
+  /* ───────── Day rollover ───────── */
   function checkDay() {
     const k = keyOf(new Date());
-    if (k !== todayKey) { todayKey = k; editing = -1; renderDate(); renderToday({ instant: true }); if (!$('#view-history').hidden) renderHistory(); }
+    if (k !== todayKey) { todayKey = k; selDay = 13; setTab(tab); }
   }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { checkDay(); if (focus.running) drawFocus(); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDay(); });
   setInterval(checkDay, 30e3);
 
-  // ?demo — seeds a believable history (for screenshots / first look)
-  const demoQ = location.search + (window.MERIDIAN_DEMO ? '&demo=1' : '');
-  if (/[?&]demo/.test(demoQ) && !Object.keys(state.days).length) {
-    const sample = [['Ship the onboarding redesign', 'Call mom back', '30 minutes of reading'], ['Write the quarterly memo', 'Gym — legs', 'Inbox to zero'], ['Review 3 pull requests', 'Plan the weekend trip', 'Stretch before bed']];
-    const tk = fromKey(todayKey); let seed = 3; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    for (let k = 1; k < 110; k++) {
-      const r = rnd(); if (k >= 6 && r < 0.12) continue;
-      const n = k < 6 ? 3 : r < 0.55 ? 3 : r < 0.75 ? 2 : r < 0.9 ? 1 : 0;
-      const s = sample[k % 3];
-      state.days[keyOf(addDays(tk, -k))] = { items: s.map((t, j) => ({ t, d: j < n })) };
-    }
-    state.days[todayKey] = { items: [{ t: 'Send five outreach emails', d: /demo=[123]/.test(demoQ) }, { t: 'Finish a focused work session', d: /demo=[23]/.test(demoQ) }, { t: 'Get outside for a walk', d: /demo=3/.test(demoQ) }] };
-    if (/demo=3/.test(demoQ)) state.days[todayKey].wonAt = Date.now();
+  /* ───────── Sample data for screenshots: open with ?demo ───────── */
+  if (/[?&]demo/.test(location.search) && !Object.keys(state.days).length) {
+    const sets = [['Ship the onboarding redesign', 'Call Dad back', '30 minutes of reading'], ['Write the quarterly memo', 'Gym: legs day', 'Inbox to zero'], ['Review three pull requests', 'Plan the weekend trip', 'Stretch before bed']];
+    const pattern = [3, 3, 2, 3, 0, 3, 1, 3, 3, 2, 3, 3, 3, 3, 3, 2, 3, 3, 1, 3, 3, 3, 0, 3, 3, 3, 3, 2, 3, 3];
+    const t = fromKey(todayKey);
+    pattern.forEach((n, i) => { state.days[keyOf(addDays(t, i - pattern.length))] = { items: sets[i % 3].map((x, j) => ({ t: x, d: j < n })) }; });
+    const m = location.search.match(/demo=(\d)/), n = m ? +m[1] : 1;
+    state.days[todayKey] = { items: ['Send five outreach emails', 'Finish a focused work session', 'Get outside for a walk'].map((x, j) => ({ t: x, d: j < n })) };
+    state.name = 'Alex Rivera';
+    if (/dark/.test(location.search)) state.settings.theme = 'dark';
   }
 
   /* ───────── Boot ───────── */
   applyTheme();
-  renderDate();
-  buildList();
-  renderToday({ instant: true, silent: true });
-  requestAnimationFrame(movePill);
-  document.fonts && document.fonts.ready.then(movePill);
-  if (/[?&]view=history/.test(location.search)) setView('history');
+  buildPris();
+  setTab(/[?&]tab=(garden|profile)/.test(location.search) ? location.search.match(/tab=(\w+)/)[1] : 'today');
+  if (/[?&]settings/.test(location.search)) setProfileTab('settings');
   if (/[?&]win/.test(location.search)) setTimeout(showWin, 300);
-  if (/[?&]focus/.test(location.search)) setTimeout(() => openFocus(0), 300);
+  syncReminders(false);
 })();
