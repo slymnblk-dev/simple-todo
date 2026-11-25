@@ -33,7 +33,7 @@
   --hero: #F0B14A; --on-hero: #17261D; --on-hero-sub: #5C4013; --on-hero-accent: #17261D;
   --glass: rgba(14,22,17,.72); --seg: #1E2B23; --seg-on: #2C3D32; --switch-off: #3A4C40;
   --inv: #E6EDE5; --on-inv: #0E1611;
-  --nav-glass: rgba(30,43,35,.78); --nav-shadow: 0 18px 40px -12px rgba(0,0,0,.75); --nav-active: #E6EDE5; --nav-active-text: #0E1611;
+  --nav-glass: rgba(30,43,35,.78); --nav-shadow: 0 18px 40px -12px rgba(0,0,0,.75); --nav-active: #2B4234; --nav-active-text: #E6EDE5;
   --toast-bg: #E6EDE5; --toast-text: #0E1611; --toast-btn: #D3DED3; --toast-btn-text: #6B4510;
   --danger: #FF8F75; --chip-won-bg: #3A2E17; --chip-won-text: #F0B14A; --chip-bg: #1E2B23;
   --card: linear-gradient(180deg, #16241C 0%, #0F1813 100%);
