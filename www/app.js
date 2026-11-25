@@ -141,8 +141,8 @@
     const c = $('#count');
     if (c.textContent !== String(n)) { c.textContent = n; if (lastN >= 0 && !reduced) { c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); } }
     lastN = n;
-    $('#status').textContent = STATUS[n];
     const filled = day.items.filter((x) => x.t.trim()).length;
+    $('#status').textContent = filled === 0 ? 'Name your three to plant today’s seed.' : STATUS[n];
     $('#remaining').textContent = n === 3 ? 'ALL DONE' : filled < 3 ? `${3 - filled} TO NAME` : `${3 - n} LEFT`;
     renderCarry();
   }
@@ -246,8 +246,8 @@
     const s = stats();
     $('#stats').innerHTML = `
       <div class="stat hero"><p class="mono">STREAK</p><p class="stat-n">${s.cur}<small> ${s.cur === 1 ? 'day' : 'days'}</small></p></div>
-      <div class="stat"><p class="mono">DAYS WON</p><p class="stat-n">${s.total}</p></div>
-      <div class="stat"><p class="mono">BEST RUN</p><p class="stat-n">${s.best}</p></div>`;
+      <div class="stat"><p class="mono">DAYS WON</p><p class="stat-n">${s.total}<small> ${s.total === 1 ? 'day' : 'days'}</small></p></div>
+      <div class="stat"><p class="mono">BEST RUN</p><p class="stat-n">${s.best}<small> ${s.best === 1 ? 'day' : 'days'}</small></p></div>`;
     const g = $('#garden'); g.innerHTML = '';
     const t = fromKey(todayKey);
     for (let i = 0; i < 14; i++) {
@@ -263,7 +263,7 @@
           <path class="c-b" d="M20 26 C27 26 31 22 32 17 C26 17 22 20 20 26Z" opacity="${k >= 2 ? 1 : 0}"/>
           <path class="c-top" d="M20 19 C15 18 13 15 13 11 C17 12 19 15 20 19Z" opacity="${k >= 3 ? 1 : 0}"/>
           <rect class="c-pot" x="12" y="40" width="16" height="6" rx="2"/>
-        </svg><span>${fmt(d, { weekday: 'narrow' })}</span>`;
+        </svg><span>${fmt(d, { weekday: 'narrow' })}</span><b>${d.getDate()}</b>`;
       b.addEventListener('click', () => { selDay = i; renderGarden(); });
       g.appendChild(b);
     }
@@ -284,8 +284,9 @@
   const FLAME = 'M8 1.5c1 2.5 4 4 4 7.5a4 4 0 0 1-8 0c0-1.6.8-2.7 1.8-3.6C6 7 7 7.5 7.5 6 7.8 4.6 7.6 3 8 1.5z';
   function renderProfile() {
     const name = state.name || '';
-    const initials = (name.trim().split(/\s+/).map((w) => w[0] || '').join('').slice(0, 2) || 'G').toUpperCase();
-    $('#avatar').textContent = initials;
+    const initials = name.trim().split(/\s+/).map((w) => w[0] || '').join('').slice(0, 2).toUpperCase();
+    if (initials) $('#avatar').textContent = initials;
+    else $('#avatar').innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="${LEAF}"/></svg>`;
     const ni = $('#nameInput'); if (document.activeElement !== ni) ni.value = name;
     const s = stats();
     const first = Object.keys(state.days).sort()[0];
@@ -294,11 +295,11 @@
     $('#weekBars').innerHTML = [0, 1, 2, 3, 4].map((k) => `<i class="${k < s.week ? 'on' : ''}"></i>`).join('');
     $('#weekHint').textContent = s.week >= 5 ? 'Goal reached this week. Nice.' : `${5 - s.week} more ${5 - s.week === 1 ? 'day' : 'days'} won to hit your goal this week.`;
     const badges = [
-      ['First leaf', s.anyDone, LEAF], ['First day won', s.total >= 1, SUN], ['7-day streak', s.best >= 7, FLAME],
-      ['Full week', s.week >= 5, SUN], ['30 days won', s.total >= 30, SUN], ['100 days won', s.total >= 100, SUN]
+      ['First leaf', s.anyDone, LEAF, ''], ['First day won', s.total >= 1, SUN, ''], ['7-day streak', s.best >= 7, FLAME, `${s.best}/7`],
+      ['Full week', s.week >= 5, SUN, `${s.week}/5`], ['30 days won', s.total >= 30, SUN, `${s.total}/30`], ['100 days won', s.total >= 100, SUN, `${s.total}/100`]
     ];
     $('#badgeCount').textContent = `${badges.filter((b) => b[1]).length} / ${badges.length}`;
-    $('#badges').innerHTML = badges.map(([n, got, icon]) => `<div class="badge${got ? ' got' : ''}"><b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="${icon}"/></svg></b>${n}${got ? '' : '<span class="sr-only"> (locked)</span>'}</div>`).join('');
+    $('#badges').innerHTML = badges.map(([n, got, icon, prog]) => `<div class="badge${got ? ' got' : ''}"><b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="${icon}"/></svg></b>${n}${got ? '' : (prog ? `<em>${prog}</em>` : '') + '<span class="sr-only"> (locked)</span>'}</div>`).join('');
     $$('.switch').forEach((sw) => sw.setAttribute('aria-checked', String(!!state.settings[sw.dataset.key])));
     $('#times').hidden = !state.settings.morning;
     $$('#times button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.time === state.settings.time)));
@@ -333,6 +334,17 @@
     if (Date.now() - clearArmed > 3000) { clearArmed = Date.now(); b.textContent = 'Tap again to clear today'; setTimeout(() => (b.textContent = 'Clear today'), 3000); return; }
     clearArmed = 0; b.textContent = 'Clear today';
     delete state.days[todayKey]; save(); renderToday(); setTab('today'); toast('Today cleared');
+  });
+
+  /* hide the floating nav while typing so the keyboard doesn't push it over the inputs */
+  const app = $('.app');
+  document.addEventListener('focusin', (e) => { if (e.target.matches('input')) app.classList.add('typing'); });
+  document.addEventListener('focusout', (e) => { if (e.target.matches('input')) setTimeout(() => { if (!document.activeElement?.matches('input')) app.classList.remove('typing'); }, 0); });
+
+  /* tap the sun on a won day to replay the sunrise */
+  $('#sun').addEventListener('click', () => {
+    if (!isWon(today())) return;
+    renderToday({ celebrate: true }); chimeWin(); buzz(14);
   });
 
   /* ───────── Navigation ───────── */
