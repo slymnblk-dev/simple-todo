@@ -237,44 +237,108 @@
     const w = $('#win'); w.classList.add('out');
     setTimeout(() => { w.hidden = true; then && then(); }, 330);
   }
-  $('#winGarden').addEventListener('click', () => closeWin(() => { selDay = 13; setTab('garden'); }));
+  $('#winGarden').addEventListener('click', () => closeWin(() => { resetGardenSel(); setTab('garden'); }));
   $('#winBack').addEventListener('click', () => closeWin());
 
   /* ───────── Garden ───────── */
-  let selDay = 13;
+  const CANOPY = 'M-40 8 C-50 -8 -40 -28 -22 -28 C-20 -46 0 -54 14 -44 C30 -52 48 -38 44 -20 C58 -10 54 12 38 16 C36 32 14 38 2 28 C-10 38 -32 34 -32 20 C-44 20 -46 12 -40 8Z';
+  const CANOPY_B = 'M-36 4 C-44 -14 -30 -32 -14 -30 C-8 -48 16 -50 24 -36 C42 -40 52 -20 42 -8 C54 4 46 22 30 22 C24 36 4 38 -4 28 C-18 36 -38 26 -34 14 C-42 12 -42 6 -36 4Z';
+  const HILITE = 'M-30 -6 C-34 -20 -22 -30 -10 -26 C-6 -38 10 -42 18 -34 C8 -30 -2 -22 -6 -12 C-14 -14 -24 -10 -30 -6Z';
+  const PINE = 'M0 -72 L16 -44 L8 -44 L26 -14 L14 -14 L34 18 L-34 18 L-14 -14 L-26 -14 L-8 -44 L-16 -44 Z';
+  const leafTree = (x, y, s, canopy, hl) => `<g transform="translate(${x} ${y}) scale(${s})"><path class="t-trunk" stroke-width="${(3.4 / s).toFixed(1)}" d="M0 62 V14 M0 36 L-12 22"/><path class="t-dark" d="${canopy}"/>${hl ? `<path class="t-light" d="${HILITE}"/>` : ''}</g>`;
+  const pine = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><path class="t-trunk" stroke-width="${(3.4 / s).toFixed(1)}" d="M0 16 V32"/><path class="t-dark" stroke-linejoin="round" d="${PINE}"/></g>`;
+  const ICONS = {
+    sprout: '<path class="t-trunk" stroke-width="3" d="M28 46 V30"/><path class="t-dark" d="M28 38 C20 38 16 34 15 28 C22 28 26 32 28 38Z"/><path class="t-light" d="M28 33 C35 33 39 29 40 23 C33 23 29 27 28 33Z"/>',
+    sapling: '<path class="t-trunk" stroke-width="3" d="M28 48 V18"/><path class="t-dark" d="M28 40 C19 40 15 35 14 29 C22 29 26 34 28 40Z"/><path class="t-light" d="M28 32 C37 32 41 27 42 21 C34 21 30 26 28 32Z"/><path class="t-dark" d="M28 22 C22 21 19 16 19 11 C25 12 28 16 28 22Z"/>',
+    tree: leafTree(28, 27, 0.42, CANOPY, true),
+    grove: leafTree(20, 30, 0.3, CANOPY, false) + leafTree(37, 34, 0.24, CANOPY_B, false),
+    forest: pine(18, 38, 0.36) + pine(37, 36, 0.44),
+    old: pine(44, 40, 0.3) + leafTree(25, 26, 0.48, CANOPY, true)
+  };
+  const STAGES = [['Sprout', 1, 'sprout'], ['Sapling', 7, 'sapling'], ['Tree', 30, 'tree'], ['Grove', 100, 'grove'], ['Forest', 200, 'forest'], ['Old growth', 365, 'old']];
+  const plural = (n) => `${n} ${n === 1 ? 'day' : 'days'}`;
+
+  let selKey, viewMonth;
+  function resetGardenSel() { selKey = todayKey; const t = fromKey(todayKey); viewMonth = new Date(t.getFullYear(), t.getMonth(), 1); }
+  resetGardenSel();
+  $('#monthPrev').addEventListener('click', () => { viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1); renderGarden(); });
+  $('#monthNext').addEventListener('click', () => { viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1); renderGarden(); });
+  $('#toHistory').addEventListener('click', () => $('#historyHead').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' }));
   function renderGarden() {
     const s = stats();
-    $('#stats').innerHTML = `
-      <div class="stat hero"><p class="mono">STREAK</p><p class="stat-n">${s.cur}<small> ${s.cur === 1 ? 'day' : 'days'}</small></p></div>
-      <div class="stat"><p class="mono">DAYS WON</p><p class="stat-n">${s.total}<small> ${s.total === 1 ? 'day' : 'days'}</small></p></div>
-      <div class="stat"><p class="mono">BEST RUN</p><p class="stat-n">${s.best}<small> ${s.best === 1 ? 'day' : 'days'}</small></p></div>`;
-    const g = $('#garden'); g.innerHTML = '';
     const t = fromKey(todayKey);
-    for (let i = 0; i < 14; i++) {
-      const d = addDays(t, i - 13), day = state.days[keyOf(d)], k = doneCount(day);
+    const lastDay = isWon(state.days[todayKey]) ? t : addDays(t, -1);
+    const streakStart = addDays(lastDay, -(s.cur - 1));
+    let cur = -1;
+    STAGES.forEach(([, th], i) => { if (s.cur >= th) cur = i; });
+
+    // streak card
+    $('#streakN').textContent = s.cur;
+    $('#streakSub').textContent = cur < 0 ? 'Win today to plant a sprout' : `${s.cur === 1 ? 'day' : 'days'} · you’re a ${STAGES[cur][0]}`;
+    const art = $('#streakArt');
+    art.innerHTML = ICONS[STAGES[Math.max(cur, 0)][2]];
+    art.classList.toggle('locked', cur < 0);
+
+    // path
+    const short = (d) => fmt(d, { month: 'short', day: 'numeric' }).toUpperCase();
+    $('#path').innerHTML = STAGES.map(([name, th, icon], i) => {
+      const state_ = i < cur ? 'reached' : i === cur ? 'current' : 'locked';
+      let meta;
+      if (state_ === 'locked') { const when = addDays(lastDay, th - s.cur); meta = keyOf(when) === todayKey ? 'TODAY' : short(when); }
+      else if (state_ === 'reached') meta = '✓ ' + short(addDays(streakStart, th - 1));
+      else meta = 'YOU’RE HERE';
+      let progress = '';
+      if (state_ === 'current') {
+        const next = STAGES[i + 1];
+        progress = next
+          ? `<div class="stage-progress"><i style="--p:${Math.round(((s.cur - th) / (next[1] - th)) * 100)}%"></i><span>${next[1] - s.cur} TO ${next[0].toUpperCase()}</span></div>`
+          : '<div class="stage-progress"><i style="--p:100%"></i><span>THE TOP. KEEP GOING.</span></div>';
+      }
+      const label = `${name}, ${plural(th)}: ${state_ === 'reached' ? 'reached' : state_ === 'current' ? 'your current stage' : 'reached on ' + meta.toLowerCase()}`;
+      return `<li class="stage ${state_}" aria-label="${label}"><div class="stage-row"><svg class="stage-icon" viewBox="0 0 56 56" aria-hidden="true">${ICONS[icon]}</svg><div class="stage-name"><b>${name}</b><span>${plural(th)}</span></div><span class="stage-meta">${meta}</span></div>${progress}</li>`;
+    }).join('');
+
+    // history stats
+    $('#histStats').textContent = `${s.total} WON · BEST ${s.best}`;
+
+    // month calendar
+    const y = viewMonth.getFullYear(), m = viewMonth.getMonth();
+    const first = new Date(y, m, 1), daysIn = new Date(y, m + 1, 0).getDate(), lead = (first.getDay() + 6) % 7;
+    $('#monthName').textContent = fmt(first, { month: 'long', year: 'numeric' });
+    $('#monthWeek').innerHTML = [0, 1, 2, 3, 4, 5, 6].map((k) => `<span>${fmt(addDays(new Date(2024, 0, 1), k), { weekday: 'narrow' })}</span>`).join('');
+    const grid = $('#monthGrid'); grid.innerHTML = '';
+    for (let i = 0; i < lead; i++) { const b = document.createElement('span'); b.className = 'day blank'; grid.appendChild(b); }
+    let won = 0, past = 0;
+    for (let d = 1; d <= daysIn; d++) {
+      const date = new Date(y, m, d), key = keyOf(date), k = doneCount(state.days[key]);
       const b = document.createElement('button');
-      b.className = 'cell' + (i === 13 ? ' today' : '');
-      b.setAttribute('aria-pressed', String(i === selDay));
-      b.setAttribute('aria-label', `${i === 13 ? 'Today' : fmt(d, { weekday: 'long', month: 'short', day: 'numeric' })}: ${k === 3 ? 'day won' : k + ' of 3'}`);
-      b.innerHTML = `<svg viewBox="0 0 40 48" aria-hidden="true">
-          <circle class="c-sun" cx="27" cy="12" r="6" opacity="${k >= 3 ? 1 : 0}"/>
-          <path class="c-stem" d="M20 40 V16" opacity="${k > 0 ? 1 : 0}"/>
-          <path class="c-a" d="M20 32 C13 32 9 28 8 23 C14 23 18 26 20 32Z" opacity="${k >= 1 ? 1 : 0}"/>
-          <path class="c-b" d="M20 26 C27 26 31 22 32 17 C26 17 22 20 20 26Z" opacity="${k >= 2 ? 1 : 0}"/>
-          <path class="c-top" d="M20 19 C15 18 13 15 13 11 C17 12 19 15 20 19Z" opacity="${k >= 3 ? 1 : 0}"/>
-          <rect class="c-pot" x="12" y="40" width="16" height="6" rx="2"/>
-        </svg><span>${fmt(d, { weekday: 'narrow' })}</span><b>${d.getDate()}</b>`;
-      b.addEventListener('click', () => { selDay = i; renderGarden(); });
-      g.appendChild(b);
+      b.textContent = d;
+      if (date > t) { b.className = 'day future'; b.disabled = true; b.setAttribute('aria-label', `${fmt(date, { month: 'long', day: 'numeric' })}: upcoming`); }
+      else {
+        if (date < t || k === 3) { past++; if (k === 3) won++; }
+        b.className = 'day' + (k === 3 ? ' won' : k > 0 ? ` p${k}` : '') + (key === todayKey ? ' today' : '');
+        if (k === 1 || k === 2) b.style.setProperty('--p', `${Math.round((k / 3) * 100)}%`);
+        b.setAttribute('aria-pressed', String(key === selKey));
+        b.setAttribute('aria-label', `${key === todayKey ? 'Today' : fmt(date, { weekday: 'long', month: 'long', day: 'numeric' })}: ${k === 3 ? 'day won' : k + ' of 3'}`);
+        b.addEventListener('click', () => { selKey = key; renderGarden(); });
+      }
+      grid.appendChild(b);
     }
-    const sd = addDays(t, selDay - 13), sday = state.days[keyOf(sd)], sk = doneCount(sday);
-    $('#selTitle').textContent = selDay === 13 ? 'Today' : selDay === 12 ? 'Yesterday' : fmt(sd, { weekday: 'short', month: 'short', day: 'numeric' });
+    $('#monthStat').textContent = past ? `${won} OF ${past} WON` : 'NOTHING YET';
+    const firstKey = Object.keys(state.days).sort()[0];
+    const firstMonth = firstKey ? new Date(fromKey(firstKey).getFullYear(), fromKey(firstKey).getMonth(), 1) : first;
+    $('#monthPrev').disabled = first <= firstMonth;
+    $('#monthNext').disabled = y === t.getFullYear() && m === t.getMonth();
+
+    // selected day
+    const sd = fromKey(selKey), sday = state.days[selKey], sk = doneCount(sday);
+    $('#selTitle').textContent = selKey === todayKey ? 'Today' : selKey === keyOf(addDays(t, -1)) ? 'Yesterday' : fmt(sd, { weekday: 'short', month: 'short', day: 'numeric' });
     const chip = $('#selChip');
     chip.textContent = sk === 3 ? 'DAY WON' : `${sk} OF 3`;
     chip.classList.toggle('won', sk === 3);
     const ul = $('#selList'); ul.innerHTML = '';
     const named = sday ? sday.items.filter((x) => x.t.trim()) : [];
-    if (!named.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = selDay === 13 ? 'Nothing named yet today.' : 'Nothing planted that day.'; ul.appendChild(li); }
+    if (!named.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = selKey === todayKey ? 'Nothing named yet today.' : 'Nothing planted that day.'; ul.appendChild(li); }
     named.forEach((x) => { const li = document.createElement('li'); if (x.d) li.className = 'd'; li.innerHTML = '<i></i><span></span>'; li.lastChild.textContent = x.t; ul.appendChild(li); });
   }
 
@@ -369,7 +433,7 @@
   /* ───────── Day rollover ───────── */
   function checkDay() {
     const k = keyOf(new Date());
-    if (k !== todayKey) { todayKey = k; selDay = 13; setTab(tab); }
+    if (k !== todayKey) { todayKey = k; resetGardenSel(); setTab(tab); }
   }
   document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDay(); });
   setInterval(checkDay, 30e3);
@@ -380,6 +444,7 @@
     const pattern = [3, 3, 2, 3, 0, 3, 1, 3, 3, 2, 3, 3, 3, 3, 3, 2, 3, 3, 1, 3, 3, 3, 0, 3, 3, 3, 3, 2, 3, 3];
     const t = fromKey(todayKey);
     pattern.forEach((n, i) => { state.days[keyOf(addDays(t, i - pattern.length))] = { items: sets[i % 3].map((x, j) => ({ t: x, d: j < n })) }; });
+    const sm = location.search.match(/streak=(\d+)/); if (sm) for (let i = 1; i <= +sm[1]; i++) state.days[keyOf(addDays(t, -i))] = { items: sets[i % 3].map((x) => ({ t: x, d: true })) };
     const m = location.search.match(/demo=(\d)/), n = m ? +m[1] : 1;
     state.days[todayKey] = { items: ['Send five outreach emails', 'Finish a focused work session', 'Get outside for a walk'].map((x, j) => ({ t: x, d: j < n })) };
     state.name = 'Alex Rivera';

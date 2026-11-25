@@ -67,11 +67,38 @@
 
       <!-- ───────── GARDEN ───────── -->
       <section class="view" id="view-garden" aria-label="Garden" hidden>
-        <h1 class="h1 big">Garden</h1>
-        <div class="stats" id="stats"></div>
-        <section class="panel garden-panel" aria-label="Last fourteen days">
-          <p class="panel-sub">Last two weeks · tap a day</p>
-          <div class="garden" id="garden"></div>
+        <section class="streak-card" aria-label="Streak">
+          <div class="streak-text">
+            <span class="mono">STREAK</span>
+            <span class="streak-n" id="streakN">0</span>
+            <span class="streak-sub" id="streakSub"></span>
+          </div>
+          <svg class="streak-art" viewBox="0 0 170 150" aria-hidden="true">
+            <circle cx="120" cy="46" r="34" class="f-amber" opacity=".18"/>
+            <circle cx="120" cy="46" r="20" class="f-amber"/>
+            <path d="M0 132 C50 114 110 112 170 120 L170 150 L0 150Z" class="streak-hill"/>
+            <g id="streakArt" transform="translate(52 52) scale(1.6)"></g>
+          </svg>
+        </section>
+
+        <div class="row-head">
+          <h1 class="h1">Your path</h1>
+          <button class="text-link" id="toHistory">History ↓</button>
+        </div>
+        <ol class="path" id="path"></ol>
+
+        <div class="row-head" id="historyHead">
+          <h1 class="h1">History</h1>
+          <span class="mono muted2" id="histStats"></span>
+        </div>
+        <section class="panel month" aria-label="Month">
+          <div class="month-head">
+            <button class="month-nav" id="monthPrev" aria-label="Previous month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+            <div class="month-title"><span id="monthName"></span><span class="mono muted2" id="monthStat"></span></div>
+            <button class="month-nav" id="monthNext" aria-label="Next month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+          </div>
+          <div class="month-week mono" aria-hidden="true" id="monthWeek"></div>
+          <div class="month-grid" id="monthGrid"></div>
         </section>
         <section class="panel" aria-live="polite">
           <div class="panel-head">
