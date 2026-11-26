@@ -458,4 +458,12 @@
   if (/[?&]settings/.test(location.search)) setProfileTab('settings');
   if (/[?&]win/.test(location.search)) setTimeout(showWin, 300);
   syncReminders(false);
+
+  // Native (Capacitor) build keeps reminders; the home-screen web app hides them for now
+  const isNative = !!window.Capacitor?.isNativePlatform?.();
+  if (!isNative) $$('.native-only').forEach((el) => (el.hidden = true));
+  // Offline support for the home-screen web app
+  if (!isNative && 'serviceWorker' in navigator && location.protocol === 'https:') {
+    addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
 })();

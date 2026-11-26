@@ -1,0 +1,16 @@
+# Grow — home-screen web app. Static files only, no build step.
+[build]
+  publish = "www"
+  command = ""
+
+# Always fetch the latest service worker and manifest so updates reach installed apps
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+    Cache-Control = "no-cache"

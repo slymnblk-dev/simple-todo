@@ -7,3 +7,4 @@ android/capacitor-cordova-android-plugins/
 android/app/src/main/assets/public/
 android/app/src/main/assets/capacitor.*.json
 .idea/
+.netlify
