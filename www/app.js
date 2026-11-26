@@ -462,6 +462,12 @@
   // Native (Capacitor) build keeps reminders; the home-screen web app hides them for now
   const isNative = !!window.Capacitor?.isNativePlatform?.();
   if (!isNative) $$('.native-only').forEach((el) => (el.hidden = true));
+  // Keep the phone's status bar hidden in the native app (re-applied when returning to the app)
+  const hideStatusBar = () => window.Capacitor?.Plugins?.StatusBar?.hide?.().catch?.(() => {});
+  if (isNative) {
+    hideStatusBar();
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) hideStatusBar(); });
+  }
   // Offline support for the home-screen web app
   if (!isNative && 'serviceWorker' in navigator && location.protocol === 'https:') {
     addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
