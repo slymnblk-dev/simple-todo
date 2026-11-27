@@ -8,7 +8,7 @@
 
   const PH = ['The one that moves the needle', 'The one you keep putting off', 'The one just for you'];
   const STATUS = ['Three to reach the sun.', 'First leaf. Keep going.', 'One more to reach the sun.', 'Sunlit. Day won.'];
-  const DEFAULTS = { theme: 'auto', sound: true, haptics: true, carry: true, morning: false, time: '08:00', evening: false };
+  const DEFAULTS = { theme: 'auto', sound: true, haptics: true, carry: true, morning: false, time: '08:00', evening: false, bonus: false };
 
   /* ───────── Storage ───────── */
   function load() {
@@ -29,6 +29,7 @@
   const ensureToday = () => (state.days[todayKey] ||= blank());
   const doneCount = (day) => (day ? day.items.filter((x) => x.d && x.t.trim()).length : 0);
   const isWon = (day) => doneCount(day) === 3;
+  const bonusDone = (day) => (day && day.bonus ? day.bonus.filter((x) => x.d && x.t.trim()).length : 0);
   const fmt = (d, o) => d.toLocaleDateString(undefined, o);
 
   /* ───────── Theme ───────── */
@@ -111,6 +112,60 @@
         </div>`;
       pris.appendChild(li);
     }
+    const bl = $('#bonusList'); bl.innerHTML = '';
+    const BPH = ['A bonus, if you feel like it', 'Another one, why not', 'One more for the road'];
+    for (let i = 0; i < 3; i++) {
+      const li = document.createElement('li');
+      li.className = 'pri bonus-row'; li.dataset.i = i;
+      li.innerHTML = `
+        <button class="check" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg></button>
+        <div class="pri-body">
+          <label class="pri-label" for="bonus${i}"></label>
+          <input class="pri-input" id="bonus${i}" maxlength="60" enterkeyhint="done" autocomplete="off" placeholder="${BPH[i]}">
+        </div>`;
+      bl.appendChild(li);
+    }
+  }
+
+  /* ───────── Bonus round ───────── */
+  const blankBonus = () => [0, 1, 2].map(() => ({ t: '', d: false }));
+  const ensureBonus = () => { const d = ensureToday(); d.bonus ||= blankBonus(); return d.bonus; };
+  let showThree = false; // the collapsed "Your three" row is expanded
+  function renderBonus(day, n) {
+    const active = state.settings.bonus && n === 3;
+    const bonus = day.bonus || blankBonus();
+    const b = bonusDone(day);
+    $('#bonusWrap').hidden = !active;
+    $('#doneSummary').hidden = !active;
+    $('#threeHead').hidden = active;
+    pris.hidden = active && !showThree;
+    $('#doneSummary').setAttribute('aria-expanded', String(active && showThree));
+    $('#doneSummarySub').textContent = day.items.map((x) => x.t).join(', ');
+    const chip = $('#bonusChip');
+    chip.hidden = !(state.settings.bonus && b > 0);
+    $('#plantCard').classList.toggle('has-chip', !chip.hidden);
+    chip.textContent = `+${b} BONUS`;
+    $$('.fruit').forEach((f, i) => {
+      const x = bonus[i], on = !!(x && x.d && x.t.trim());
+      f.classList.toggle('on', state.settings.bonus && on);
+      f.classList.toggle('slot', active && !on);
+    });
+    if (!active) return;
+    const nextIdx = bonus.findIndex((x) => !x.d && x.t.trim());
+    $('#bonusCount').textContent = `${b} OF 3 · OPTIONAL`;
+    $$('.bonus-row').forEach((li, i) => {
+      const x = bonus[i], empty = !x.t.trim(), done = x.d && !empty;
+      li.classList.toggle('done', done);
+      li.classList.toggle('filled', !empty);
+      li.classList.toggle('next', i === nextIdx);
+      const btn = $('.check', li);
+      btn.disabled = empty;
+      btn.setAttribute('aria-pressed', String(done));
+      btn.setAttribute('aria-label', (done ? 'Mark bonus not done: ' : 'Mark bonus done: ') + (x.t || 'empty bonus'));
+      $('.pri-label', li).textContent = (i === nextIdx ? 'Up next · ' : '') + 'Bonus ' + (i + 1);
+      const inp = $('.pri-input', li);
+      if (document.activeElement !== inp) inp.value = x.t;
+    });
   }
 
   let lastN = -1;
@@ -142,9 +197,65 @@
     if (c.textContent !== String(n)) { c.textContent = n; if (lastN >= 0 && !reduced) { c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); } }
     lastN = n;
     const filled = day.items.filter((x) => x.t.trim()).length;
-    $('#status').textContent = filled === 0 ? 'Name your three to plant today’s seed.' : STATUS[n];
+    const b = state.settings.bonus && n === 3 ? bonusDone(day) : 0;
+    $('#status').textContent = filled === 0 ? 'Name your three to plant today’s seed.'
+      : b === 3 ? 'Sunlit, with a full harvest.' : b > 0 ? `Sunlit. ${b} golden ${b === 1 ? 'fruit' : 'fruits'}.` : STATUS[n];
     $('#remaining').textContent = n === 3 ? 'ALL DONE' : filled < 3 ? `${3 - filled} TO NAME` : `${3 - n} LEFT`;
+    renderBonus(day, n);
     renderCarry();
+  }
+
+  const bonusList = $('#bonusList');
+  bonusList.addEventListener('click', (e) => {
+    const btn = e.target.closest('.check'); if (!btn) return;
+    toggleBonus(+btn.closest('.pri').dataset.i);
+  });
+  bonusList.addEventListener('input', (e) => {
+    if (!e.target.classList.contains('pri-input')) return;
+    const i = +e.target.closest('.pri').dataset.i, bonus = ensureBonus();
+    bonus[i].t = e.target.value;
+    if (!e.target.value.trim()) bonus[i].d = false;
+    save(); renderToday();
+  });
+  bonusList.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || !e.target.classList.contains('pri-input')) return;
+    e.preventDefault();
+    const i = +e.target.closest('.pri').dataset.i, bonus = today().bonus || blankBonus();
+    for (let k = i + 1; k < 3; k++) if (!bonus[k].t.trim()) { $(`#bonus${k}`).focus(); return; }
+    e.target.blur();
+  });
+  bonusList.addEventListener('focusout', (e) => {
+    if (!e.target.classList.contains('pri-input')) return;
+    const i = +e.target.closest('.pri').dataset.i, d = state.days[todayKey];
+    if (d && d.bonus) { d.bonus[i].t = d.bonus[i].t.replace(/\s+/g, ' ').trim(); save(); }
+    renderToday();
+  });
+  $('#doneSummary').addEventListener('click', () => { showThree = !showThree; renderToday(); });
+
+  function toggleBonus(i) {
+    const bonus = ensureBonus(), x = bonus[i];
+    if (!x.t.trim()) return;
+    const before = JSON.parse(JSON.stringify(bonus));
+    x.d = !x.d;
+    save();
+    const b = bonusDone(today());
+    if (x.d) {
+      tone(783.99 + b * 98, 0, 1.2, 0.09); buzz(b === 3 ? [16, 60, 30] : 14);
+      toast(b === 3 ? 'Full harvest · 3 golden fruits' : 'Golden fruit grown', () => { today().bonus = before; save(); renderToday(); });
+    } else { buzz(6); hideToast(); }
+    renderToday();
+  }
+
+  function startBonus() {
+    closeWin(() => {
+      setTab('today');
+      const bonus = today().bonus || blankBonus();
+      const k = bonus.findIndex((x) => !x.t.trim());
+      setTimeout(() => {
+        $('#bonusWrap').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+        if (k >= 0) $(`#bonus${k}`).focus({ preventScroll: true });
+      }, 120);
+    });
   }
 
   pris.addEventListener('click', (e) => {
@@ -230,9 +341,15 @@
     $('#winDate').textContent = `${fmt(new Date(), { weekday: 'long', month: 'short', day: 'numeric' }).toUpperCase()} · 3 OF 3`;
     $('#winSub').textContent = s.cur > 1 ? `Your plant reached the sun. That’s ${s.cur} days in a row.` : 'Your plant reached the sun. First day of a new streak.';
     const w = $('#win'); w.classList.remove('out'); w.hidden = false;
+    const bonusMode = !!state.settings.bonus;
+    w.classList.toggle('bonus-mode', bonusMode);
+    $('#winBonus').hidden = !bonusMode;
+    $('#winGarden').hidden = bonusMode;
+    $('#winBack').textContent = bonusMode ? 'I’m done for today' : 'Back to today';
     chimeWin();
-    setTimeout(() => $('#winGarden').focus(), 300);
+    setTimeout(() => (bonusMode ? $('#winBonusBtn') : $('#winGarden')).focus(), 300);
   }
+  $('#winBonusBtn').addEventListener('click', startBonus);
   function closeWin(then) {
     const w = $('#win'); w.classList.add('out');
     setTimeout(() => { w.hidden = true; then && then(); }, 330);
@@ -299,7 +416,8 @@
     }).join('');
 
     // history stats
-    $('#histStats').textContent = `${s.total} WON · BEST ${s.best}`;
+    const bonusDays = Object.values(state.days).filter((x) => isWon(x) && bonusDone(x) > 0).length;
+    $('#histStats').textContent = `${s.total} WON · ${bonusDays ? bonusDays + ' WITH BONUS' : 'BEST ' + s.best}`;
 
     // month calendar
     const y = viewMonth.getFullYear(), m = viewMonth.getMonth();
@@ -319,7 +437,9 @@
         b.className = 'day' + (k === 3 ? ' won' : k > 0 ? ` p${k}` : '') + (key === todayKey ? ' today' : '');
         if (k === 1 || k === 2) b.style.setProperty('--p', `${Math.round((k / 3) * 100)}%`);
         b.setAttribute('aria-pressed', String(key === selKey));
-        b.setAttribute('aria-label', `${key === todayKey ? 'Today' : fmt(date, { weekday: 'long', month: 'long', day: 'numeric' })}: ${k === 3 ? 'day won' : k + ' of 3'}`);
+        const bn = k === 3 ? bonusDone(state.days[key]) : 0;
+        if (bn) { const badge = document.createElement('span'); badge.className = 'bb'; badge.setAttribute('aria-hidden', 'true'); badge.textContent = bn; b.appendChild(badge); }
+        b.setAttribute('aria-label', `${key === todayKey ? 'Today' : fmt(date, { weekday: 'long', month: 'long', day: 'numeric' })}: ${k === 3 ? 'day won' + (bn ? `, ${bn} bonus` : '') : k + ' of 3'}`);
         b.addEventListener('click', () => { selKey = key; renderGarden(); });
       }
       grid.appendChild(b);
@@ -334,12 +454,16 @@
     const sd = fromKey(selKey), sday = state.days[selKey], sk = doneCount(sday);
     $('#selTitle').textContent = selKey === todayKey ? 'Today' : selKey === keyOf(addDays(t, -1)) ? 'Yesterday' : fmt(sd, { weekday: 'short', month: 'short', day: 'numeric' });
     const chip = $('#selChip');
-    chip.textContent = sk === 3 ? 'DAY WON' : `${sk} OF 3`;
+    const sb = sk === 3 ? bonusDone(sday) : 0;
+    chip.textContent = sk === 3 ? (sb ? `WON · +${sb} BONUS` : 'DAY WON') : `${sk} OF 3`;
     chip.classList.toggle('won', sk === 3);
     const ul = $('#selList'); ul.innerHTML = '';
     const named = sday ? sday.items.filter((x) => x.t.trim()) : [];
     if (!named.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = selKey === todayKey ? 'Nothing named yet today.' : 'Nothing planted that day.'; ul.appendChild(li); }
-    named.forEach((x) => { const li = document.createElement('li'); if (x.d) li.className = 'd'; li.innerHTML = '<i></i><span></span>'; li.lastChild.textContent = x.t; ul.appendChild(li); });
+    const addItem = (x, cls) => { const li = document.createElement('li'); li.className = (cls || '') + (x.d ? ' d' : ''); li.innerHTML = '<i></i><span></span>'; li.lastChild.textContent = x.t; ul.appendChild(li); };
+    named.forEach((x) => addItem(x));
+    const bonusNamed = sday && sday.bonus ? sday.bonus.filter((x) => x.t.trim()) : [];
+    bonusNamed.forEach((x, i) => addItem(x, 'bonus' + (i === 0 ? ' bonus-first' : '')));
   }
 
   /* ───────── Profile ───────── */
@@ -384,6 +508,7 @@
     if (k === 'haptics' && state.settings.haptics) buzz(12);
     if (k === 'sound' && state.settings.sound) tone(587.33, 0, 0.8, 0.08);
     if (k === 'carry') renderCarry();
+    if (k === 'bonus') renderToday();
     if (k === 'morning' || k === 'evening') syncReminders(true);
   }));
   $('#times').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; state.settings.time = b.dataset.time; save(); renderProfile(); syncReminders(true); });
@@ -448,6 +573,13 @@
     const m = location.search.match(/demo=(\d)/), n = m ? +m[1] : 1;
     state.days[todayKey] = { items: ['Send five outreach emails', 'Finish a focused work session', 'Get outside for a walk'].map((x, j) => ({ t: x, d: j < n })) };
     state.name = 'Alex Rivera';
+    const bm = location.search.match(/bonus=(\d)/);
+    if (bm) {
+      state.settings.bonus = true;
+      const bt = ['Read 20 pages', 'Tidy the desk', ''];
+      state.days[todayKey].bonus = bt.map((x, j) => ({ t: x, d: j < +bm[1] }));
+      Object.keys(state.days).forEach((k, i) => { if (k !== todayKey && isWon(state.days[k]) && i % 3 === 0) state.days[k].bonus = [{ t: 'Clear the inbox', d: true }, { t: 'Stretch for 10 minutes', d: i % 2 === 0 }, { t: '', d: false }]; });
+    }
     if (/dark/.test(location.search)) state.settings.theme = 'dark';
   }
 

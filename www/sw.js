@@ -1,7 +1,7 @@
 /* Grow service worker: keeps the app working offline.
    Serves from cache first, refreshes the cache in the background,
    so a new version shows up on the next launch. Bump VERSION to force a clean refresh. */
-const VERSION = 'grow-v1';
+const VERSION = 'grow-v2';
 const SHELL = [
   './', './index.html', './style.css', './app.js', './manifest.webmanifest',
   './fonts/bricolage.woff2', './fonts/dm-sans.woff2', './fonts/dm-mono.woff2',

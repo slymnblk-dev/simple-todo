@@ -44,12 +44,18 @@
             <path class="leaf" data-k="0" style="transform-origin: right bottom" d="M129 222 C100 222 66 206 54 176 C88 168 118 186 129 222Z"/>
             <path class="leaf leaf-b" data-k="1" style="transform-origin: left bottom" d="M131 166 C158 160 192 140 200 108 C166 104 138 128 131 166Z"/>
             <path class="leaf" data-k="2" style="transform-origin: right bottom" d="M128 118 C108 112 90 92 88 66 C112 70 126 90 128 118Z"/>
+            <g id="fruits" aria-hidden="true">
+              <g class="fruit" data-k="0"><path class="fruit-stalk" d="M62 181 v5"/><circle class="fruit-ball" cx="62" cy="193" r="9"/><circle class="fruit-hl" cx="59" cy="190" r="2.6"/></g>
+              <g class="fruit" data-k="1"><path class="fruit-stalk" d="M196 110 v5"/><circle class="fruit-ball" cx="196" cy="124" r="9"/><circle class="fruit-hl" cx="193" cy="121" r="2.6"/></g>
+              <g class="fruit" data-k="2"><path class="fruit-stalk" d="M93 66 v5"/><circle class="fruit-ball" cx="94" cy="80" r="9"/><circle class="fruit-hl" cx="91" cy="77" r="2.6"/></g>
+            </g>
             <path d="M84 268 h92 l-10 52 h-72 Z" class="pot"/>
             <rect x="78" y="260" width="104" height="14" rx="4" class="pot2"/>
           </svg>
           <div class="score">
             <span class="mono">TODAY</span>
             <span class="score-n"><span id="count">0</span><small>/3</small></span>
+            <span class="bonus-chip mono" id="bonusChip" hidden></span>
           </div>
           <p class="status" aria-live="polite"><span id="status"></span></p>
         </section>
@@ -65,11 +71,24 @@
           </div>
         </div>
 
-        <div class="row-head">
+        <div class="row-head" id="threeHead">
           <h1 class="h1">Your three</h1>
           <span class="mono muted2" id="remaining"></span>
         </div>
+        <button class="done-summary" id="doneSummary" aria-expanded="false" aria-controls="pris" hidden>
+          <span class="ds-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span>
+          <span class="ds-text"><b>Your three · all done</b><span id="doneSummarySub"></span></span>
+          <svg class="ds-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
         <ol class="pris" id="pris"></ol>
+
+        <div id="bonusWrap" hidden>
+          <div class="row-head">
+            <h1 class="h1">Bonus round</h1>
+            <span class="mono bonus-count" id="bonusCount"></span>
+          </div>
+          <ol class="pris" id="bonusList"></ol>
+        </div>
       </section>
 
       <!-- ───────── GARDEN ───────── -->
@@ -179,6 +198,14 @@
             </div>
           </section>
 
+          <p class="group mono">DAILY GOAL</p>
+          <section class="panel list">
+            <div class="set-row">
+              <div><span class="set-name">Bonus tasks</span><span class="set-sub">Up to 3 extras, unlocked once you win the day. They never affect your streak.</span></div>
+              <button class="switch" role="switch" data-key="bonus" aria-label="Bonus tasks"><span></span></button>
+            </div>
+          </section>
+
           <p class="group mono">EXPERIENCE</p>
           <section class="panel list">
             <div class="set-row">
@@ -234,6 +261,13 @@
       <p class="rise mono win-date" id="winDate"></p>
       <h2 class="rise win-title" id="winTitle">Day won.</h2>
       <p class="rise win-sub" id="winSub"></p>
+      <section class="rise win-bonus" id="winBonus" aria-label="Bonus round" hidden>
+        <div class="wb-head">
+          <span class="wb-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><circle cx="16" cy="15" r="4" opacity=".7"/><circle cx="12" cy="8" r="4" opacity=".45"/></svg></span>
+          <span class="wb-text"><b>Bonus round unlocked</b><span>Up to 3 extras. Each one adds a golden fruit.</span></span>
+        </div>
+        <button class="win-btn" id="winBonusBtn">Add bonus tasks</button>
+      </section>
       <button class="rise win-btn" id="winGarden">See it in your garden</button>
       <button class="win-back" id="winBack">Back to today</button>
     </div>
