@@ -4,6 +4,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write # needed to publish the APK to the "apk-latest" release
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,3 +28,17 @@ jobs:
         with:
           name: simple-todo-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      # Always-current download link:
+      # https://github.com/<owner>/<repo>/releases/download/apk-latest/Grow.apk
+      - name: Publish to the apk-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk Grow.apk
+          gh release delete apk-latest --yes --cleanup-tag || true
+          gh release create apk-latest Grow.apk \
+            --target "$GITHUB_SHA" \
+            --title "Grow · latest Android build" \
+            --notes "Built from ${GITHUB_REF_NAME} at ${GITHUB_SHA::7} on $(date -u '+%Y-%m-%d %H:%M UTC'). Download Grow.apk below and open it on your phone to install." \
+            --latest
